@@ -27,19 +27,18 @@ end
 """
     @authorize_aws(role_arn; audience="")
 
-Assume role via web identity.
+Assume role via web identity. How to define such a role can be found here
 https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-configure-role-oidc
+
+CAUTION: Please note that th semicolon is really important! `@authorize_aws(role_arn, audience="myaudience")` won't work as of now.
 """
 macro authorize_aws(args...)
-    # TODO somehow this gets evaluated in the wrong namespace
-    # isdefined(__module__, :AWS) || return quote
-    #     error("Please import AWS.jl via `using AWS` or `import AWS`.")
-    # end
     mydateformat = Dates.dateformat"yyyymmdd\THHMMSS\Z"
     # we define a function in a macro, so that we can use @get_jwt macro (which needs the location)
     # as well as use `renew`` argument, which requires a function
-    quote
-        function _authorize_aws(role_arn; audience="", role_session::Union{AbstractString,Nothing}=nothing)
+    @gensym _authorize_aws
+    esc(quote
+        function $_authorize_aws(role_arn; audience="", role_session::Union{AbstractString,Nothing}=nothing)
             if isnothing(role_session)
                 role_session = $AWS._role_session_name(
                     "jolincloud-role-",
@@ -47,7 +46,7 @@ macro authorize_aws(args...)
                     "-" * $Dates.format($Dates.now($Dates.UTC), $mydateformat),
                 )
             end
-            web_identity = $(Expr(:macrocall, var"@get_jwt", :audience))
+            web_identity = $JolinPluto.@get_jwt(audience)
 
             response = $AWS.AWSServices.sts(
                 "AssumeRoleWithWebIdentity",
@@ -69,12 +68,11 @@ macro authorize_aws(args...)
                 role_creds["SessionToken"],
                 assumed_role_user["Arn"];
                 expiry=$Dates.DateTime(rstrip(role_creds["Expiration"], 'Z')),
-                renew=() -> _authorize_aws(role_arn; audience, role_session),
+                renew=() -> $_authorize_aws(role_arn; audience, role_session),
             ))
         end
-
-        _authorize_aws($(map(esc, args)...))
-    end
+        $(Expr(:call, _authorize_aws, args...))
+    end)
 end
 
 # TODO add Azure, Google Cloud and HashiCorp
