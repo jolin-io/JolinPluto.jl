@@ -4,14 +4,14 @@ module JolinPluto
 export @get_jwt, @authorize_aws, @take_repeatedly!, @repeaton, @output_below, @Channel, @clipboard_image_to_clipboard_html
 
 using Dates
-using HTTP, JSON3
+using HTTP, JSON3, Git
 # TODO conditional dependency?
 using AWS
 using HypertextLiteral
 
 macro get_jwt(audience="")
     serviceaccount_token = readchomp("/var/run/secrets/kubernetes.io/serviceaccount/token")
-    project_dir = dirname(Base.current_project())
+    project_dir = readchomp(`$(git()) rev-parse --show-toplevel`)
     path = split(String(__source__.file),"#==#")[1]
     @assert startswith(path, project_dir) "invalid workflow location"
     workflowpath = path[length(project_dir)+2:end]
