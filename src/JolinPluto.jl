@@ -79,9 +79,9 @@ end
 # TODO add Azure, Google Cloud and HashiCorp
 
 macro take_repeatedly!(channel)
-	special_pluto_expr = PlutoRunner.GiveMeRerunCellFunction()
+	special_pluto_expr = __module__.PlutoRunner.GiveMeRerunCellFunction()
 	quote
-		result = take!($channel)
+		result = take!($(esc(channel)))
 		rerun_cell = $special_pluto_expr
 		rerun_cell()
 		result
@@ -93,19 +93,19 @@ macro repeaton(
 	expr,
 	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
 )
-	special_pluto_expr = PlutoRunner.GiveMeRerunCellFunction()
+	special_pluto_expr = __module__.PlutoRunner.GiveMeRerunCellFunction()
 	# for updates why this macroexpand workaround see
 	# https://discourse.julialang.org/t/error-using-sync-async-within-macro-help-is-highly-appreciated/94080
 	_needs_macroexpand_ = quote
-		nexttime = $nexttime_from_now()
+		nexttime = $(esc(nexttime_from_now))()
 		@sync @async begin
 			diff = nexttime - $Dates.now()
 			while diff > $Dates.Millisecond(0)
-				sleep($sleeptime_from_diff(diff))
+				sleep($(esc(sleeptime_from_diff))(diff))
 				diff = nexttime - $Dates.now()
 			end
 		end
-		result = $expr
+		result = $(esc(expr))
 		rerun_cell = $special_pluto_expr
 		rerun_cell()
 		result
