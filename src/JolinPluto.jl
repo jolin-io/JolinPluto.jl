@@ -1,7 +1,7 @@
 module JolinPluto
 
 # we use macros for everything to release mental load here
-export @get_jwt, @authorize_aws, @take_repeatedly!, @repeaton, @output_below
+export @get_jwt, @authorize_aws, @take_repeatedly!, @repeaton, @output_below, @Channel
 
 using Dates
 using HTTP, JSON3
@@ -79,7 +79,7 @@ end
 # TODO add Azure, Google Cloud and HashiCorp
 
 macro take_repeatedly!(channel)
-	special_pluto_expr = __module__.PlutoRunner.GiveMeRerunCellFunction()
+	special_pluto_expr = Main.PlutoRunner.GiveMeRerunCellFunction()
 	quote
 		result = take!($(esc(channel)))
 		rerun_cell = $special_pluto_expr
@@ -93,7 +93,7 @@ macro repeaton(
 	expr,
 	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
 )
-	special_pluto_expr = __module__.PlutoRunner.GiveMeRerunCellFunction()
+	special_pluto_expr = Main.PlutoRunner.GiveMeRerunCellFunction()
 	# for updates why this macroexpand workaround see
 	# https://discourse.julialang.org/t/error-using-sync-async-within-macro-help-is-highly-appreciated/94080
 	_needs_macroexpand_ = quote
@@ -110,7 +110,7 @@ macro repeaton(
 		rerun_cell()
 		result
 	end
-	macroexpand(__module__, _needs_macroexpand_)
+	macroexpand(__modu__module__le__, _needs_macroexpand_)
 end
 
 
@@ -142,6 +142,35 @@ macro output_below()
         </script>
         """
     QuoteNode(result)
+end
+
+"""
+    channel = @Channel(10) do ch
+        for i in 1:10
+            put!(ch, i)
+            sleep(1)
+        end
+    end
+
+Like normal `Channel`, with the underlying task being interrupted
+as soon as the Pluto cell is deleted.
+"""
+macro Channel(args...)
+	quote
+		taskref = Ref{Task}()
+		chnl = Channel($(map(esc, args)...); taskref=taskref)
+		register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
+		register_cleanup_fn() do
+			if !istaskdone(taskref[])
+				try
+					Base.schedule(taskref[], InterruptException(), error=true)
+				catch error
+					nothing
+				end
+			end
+		end
+		chnl
+	end
 end
 
 end  # module
