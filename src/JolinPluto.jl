@@ -46,7 +46,8 @@ macro authorize_aws(args...)
                     "-" * $Dates.format($Dates.now($Dates.UTC), $mydateformat),
                 )
             end
-            web_identity = $JolinPluto.@get_jwt(audience)
+            # we need to be cautious that @get_jwt is called with the same __source__
+            web_identity = $(Expr(:macrocall, var"@get_jwt", __source__, :audience))
 
             response = $AWS.AWSServices.sts(
                 "AssumeRoleWithWebIdentity",
