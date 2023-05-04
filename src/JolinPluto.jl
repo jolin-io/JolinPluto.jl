@@ -1,7 +1,7 @@
 module JolinPluto
 
 # we use macros for everything to release mental load here
-export @get_jwt, @authorize_aws, @take_repeatedly!, @repeaton, @output_below, @Channel
+export @get_jwt, @authorize_aws, @take_repeatedly!, @repeaton, @output_below, @Channel, @clipboard_image_to_clipboard_html
 
 using Dates
 using HTTP, JSON3
@@ -98,7 +98,7 @@ macro repeaton(
 	# https://discourse.julialang.org/t/error-using-sync-async-within-macro-help-is-highly-appreciated/94080
 	_needs_macroexpand_ = quote
 		nexttime = $(esc(nexttime_from_now))()
-		@sync @async begin
+		begin
 			diff = nexttime - $Dates.now()
 			while diff > $Dates.Millisecond(0)
 				sleep($(esc(sleeptime_from_diff))(diff))
@@ -110,7 +110,7 @@ macro repeaton(
 		rerun_cell()
 		result
 	end
-	macroexpand(__modu__module__le__, _needs_macroexpand_)
+	macroexpand(__module__, _needs_macroexpand_)
 end
 
 
@@ -171,6 +171,30 @@ macro Channel(args...)
 		end
 		chnl
 	end
+end
+
+
+macro clipboard_image_to_clipboard_html()
+	QuoteNode(HTML(raw"""
+<div contentEditable = true>
+	<script>
+	const div = currentScript.parentElement
+	const img = div.querySelector("img")
+	const p = div.querySelector("p")
+
+	div.onpaste = function(e) {
+        var data = e.clipboardData.items[0].getAsFile();
+        var fr = new FileReader;
+        fr.onloadend = function() {
+            // fr.result is all data
+		    let juliastr = `html"<img src='${fr.result}'/>"`;
+		    navigator.clipboard.writeText(juliastr);
+        };
+        fr.readAsDataURL(data);
+    };
+	</script>
+</div>
+"""))
 end
 
 end  # module
