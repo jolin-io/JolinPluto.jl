@@ -4,23 +4,64 @@ module JolinPluto
 export @get_jwt, @authorize_aws, @take_repeatedly!, @repeaton, @output_below, @Channel, @clipboard_image_to_clipboard_html
 
 using Dates
-using HTTP, JSON3, Git
+using HTTP, JSON3, Git, JWTs, Base64
 # TODO conditional dependency?
 using AWS
 using HypertextLiteral
 
+# Taken from https://github.com/JuliaPluto/PlutoHooks.jl/blob/main/src/notebook.jl#L74-L86
+"""
+	is_running_in_pluto_process()
+This doesn't mean we're in a Pluto cell, e.g. can use @bind and hooks goodies.
+It only means PlutoRunner is available (and at a version that technically supports hooks)
+"""
+function is_running_in_pluto_process()
+	isdefined(Main, :PlutoRunner) &&
+	# Also making sure my favorite goodies are present
+	isdefined(Main.PlutoRunner, :GiveMeCellID) &&
+	isdefined(Main.PlutoRunner, :GiveMeRerunCellFunction) &&
+	isdefined(Main.PlutoRunner, :GiveMeRegisterCleanupFunction)
+end
+
+
 macro get_jwt(audience="")
-    serviceaccount_token = readchomp("/var/run/secrets/kubernetes.io/serviceaccount/token")
-    project_dir = readchomp(`$(git()) rev-parse --show-toplevel`)
-    path = split(String(__source__.file),"#==#")[1]
-    @assert startswith(path, project_dir) "invalid workflow location"
-    workflowpath = path[length(project_dir)+2:end]
-    quote
-        response = $HTTP.get("http://jolin-workspace-server-jwts.default/request_jwt",
-            query=["serviceaccount_token" => $serviceaccount_token,
-                    "workflowpath" => $workflowpath,
-                    "audience" => $(esc(audience))])
-        $JSON3.read(response.body).token
+    # Jolin Cloud
+    if parse(Bool, get(ENV, "JOLIN_CLOUD", "false"))
+        serviceaccount_token = readchomp("/var/run/secrets/kubernetes.io/serviceaccount/token")
+        project_dir = readchomp(`$(git()) rev-parse --show-toplevel`)
+        path = split(String(__source__.file),"#==#")[1]
+        @assert startswith(path, project_dir) "invalid workflow location"
+        workflowpath = path[length(project_dir)+2:end]
+        quote
+            response = $HTTP.get("http://jolin-workspace-server-jwts.default/request_jwt",
+                query=["serviceaccount_token" => $serviceaccount_token,
+                        "workflowpath" => $workflowpath,
+                        "audience" => $(esc(audience))])
+            $JSON3.read(response.body).token
+        end
+    # Github Actions
+    elseif (parse(Bool, get(ENV, "CI", "false"))
+            && haskey(ENV, "ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+            && haskey(ENV, "ACTIONS_ID_TOKEN_REQUEST_URL"))
+        quote
+            response = $HTTP.get(ENV["ACTIONS_ID_TOKEN_REQUEST_URL"],
+                query=["audience" => $(esc(audience))],
+                headers=["Authorization" => "bearer " * $ACTIONS_ID_TOKEN_REQUEST_TOKEN])
+            # the token is in subfield value https://blog.alexellis.io/deploy-without-credentials-using-oidc-and-github-actions/
+            $JSON3.read(response.body).value
+        end
+    # Fallback with Dummy Value
+    else
+        quote
+            payload = Dict(
+                "iss": "http://www.example.com/",
+                "sub": "/env/YOUR_ENV/github.com/YOUR_ORGANIZATION/YOUR_REPO/PATH/TO/WORKFLOW",
+                "aud": $(esc(audience)),
+                "exp": 1536080651,
+                "iat": 1535994251,
+            )
+            string($JWT(; payload))
+        end
     end
 end
 
@@ -79,13 +120,19 @@ end
 # TODO add Azure, Google Cloud and HashiCorp
 
 macro take_repeatedly!(channel)
-	special_pluto_expr = Main.PlutoRunner.GiveMeRerunCellFunction()
-	quote
-		result = take!($(esc(channel)))
-		rerun_cell = $special_pluto_expr
-		rerun_cell()
-		result
-	end
+    if is_running_in_pluto_process()
+        quote
+            result = take!($(esc(channel)))
+            rerun_cell_func = $(Main.PlutoRunner.GiveMeRerunCellFunction())
+            rerun_cell_func()
+            result
+        end
+    else
+        # if we are not inside pluto, we just take a single value
+        quote
+            take!($(esc(channel)))
+        end
+    end
 end
 
 macro repeaton(
@@ -93,24 +140,28 @@ macro repeaton(
 	expr,
 	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
 )
-	special_pluto_expr = Main.PlutoRunner.GiveMeRerunCellFunction()
-	# for updates why this macroexpand workaround see
-	# https://discourse.julialang.org/t/error-using-sync-async-within-macro-help-is-highly-appreciated/94080
-	_needs_macroexpand_ = quote
-		nexttime = $(esc(nexttime_from_now))()
-		begin
-			diff = nexttime - $Dates.now()
-			while diff > $Dates.Millisecond(0)
-				sleep($(esc(sleeptime_from_diff))(diff))
-				diff = nexttime - $Dates.now()
-			end
-		end
-		result = $(esc(expr))
-		rerun_cell = $special_pluto_expr
-		rerun_cell()
-		result
-	end
-	macroexpand(__module__, _needs_macroexpand_)
+    if is_running_in_pluto_process()
+        # for updates why this macroexpand workaround see
+        # https://discourse.julialang.org/t/error-using-sync-async-within-macro-help-is-highly-appreciated/94080
+        _needs_macroexpand_ = quote
+            nexttime = $(esc(nexttime_from_now))()
+            begin
+                diff = nexttime - $Dates.now()
+                while diff > $Dates.Millisecond(0)
+                    sleep($(esc(sleeptime_from_diff))(diff))
+                    diff = nexttime - $Dates.now()
+                end
+            end
+            result = $(esc(expr))
+            rerun_cell_func = $(Main.PlutoRunner.GiveMeRerunCellFunction())
+            rerun_cell_func()
+            result
+        end
+        macroexpand(__module__, _needs_macroexpand_)
+    else
+        # just don't repeat if we are not inside Pluto
+        esc(expr)
+    end
 end
 
 
@@ -156,21 +207,29 @@ Like normal `Channel`, with the underlying task being interrupted
 as soon as the Pluto cell is deleted.
 """
 macro Channel(args...)
-	quote
-		taskref = Ref{Task}()
-		chnl = Channel($(map(esc, args)...); taskref=taskref)
-		register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
-		register_cleanup_fn() do
-			if !istaskdone(taskref[])
-				try
-					Base.schedule(taskref[], InterruptException(), error=true)
-				catch error
-					nothing
-				end
-			end
-		end
-		chnl
-	end
+    # TODO support keyword argumnts
+    if is_running_in_pluto_process()
+        quote
+            taskref = Ref{Task}()
+            chnl = Channel($(map(esc, args)...); taskref=taskref)
+            register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
+            register_cleanup_fn() do
+                if !istaskdone(taskref[])
+                    try
+                        Base.schedule(taskref[], InterruptException(), error=true)
+                    catch error
+                        nothing
+                    end
+                end
+            end
+            chnl
+        end
+    else
+        # just create a plain channel without cleanup
+        quote
+            Channel($(map(esc, args)...))
+        end
+    end
 end
 
 
@@ -195,6 +254,21 @@ macro clipboard_image_to_clipboard_html()
 	</script>
 </div>
 """))
+end
+
+
+# adapted from https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1536622637
+function embedLargeHTML(rawpagedata; kwargs...)
+	@htl """
+		<iframe src="about:blank" $(kwargs)></iframe>
+		<script>
+		    const embeddedFrame = currentScript.previousElementSibling;
+			const pagedata = atob($(base64encode(rawpagedata)));
+			embeddedFrame.contentWindow.document.open();
+			embeddedFrame.contentWindow.document.write(pagedata);
+			embeddedFrame.contentWindow.document.close();
+		</script>
+	"""
 end
 
 end  # module
