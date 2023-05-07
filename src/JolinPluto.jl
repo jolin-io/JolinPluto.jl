@@ -44,9 +44,9 @@ macro get_jwt(audience="")
             && haskey(ENV, "ACTIONS_ID_TOKEN_REQUEST_TOKEN")
             && haskey(ENV, "ACTIONS_ID_TOKEN_REQUEST_URL"))
         quote
-            response = $HTTP.get(ENV["ACTIONS_ID_TOKEN_REQUEST_URL"],
+            response = $HTTP.get($(ENV["ACTIONS_ID_TOKEN_REQUEST_URL"]),
                 query=["audience" => $(esc(audience))],
-                headers=["Authorization" => "bearer " * $ACTIONS_ID_TOKEN_REQUEST_TOKEN])
+                headers=["Authorization" => "bearer " * $(ENV["ACTIONS_ID_TOKEN_REQUEST_TOKEN"])])
             # the token is in subfield value https://blog.alexellis.io/deploy-without-credentials-using-oidc-and-github-actions/
             $JSON3.read(response.body).value
         end
@@ -54,11 +54,11 @@ macro get_jwt(audience="")
     else
         quote
             payload = Dict(
-                "iss": "http://www.example.com/",
-                "sub": "/env/YOUR_ENV/github.com/YOUR_ORGANIZATION/YOUR_REPO/PATH/TO/WORKFLOW",
-                "aud": $(esc(audience)),
-                "exp": 1536080651,
-                "iat": 1535994251,
+                "iss" => "http://www.example.com/",
+                "sub" => "/env/YOUR_ENV/github.com/YOUR_ORGANIZATION/YOUR_REPO/PATH/TO/WORKFLOW",
+                "aud" => $(esc(audience)),
+                "exp" => 1536080651,
+                "iat" => 1535994251,
             )
             string($JWT(; payload))
         end
