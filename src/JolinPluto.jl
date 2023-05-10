@@ -60,7 +60,8 @@ macro get_jwt(audience="")
                 "exp" => 1536080651,
                 "iat" => 1535994251,
             )
-            string($JWT(; payload))
+            # for details see https://github.com/tanmaykm/JWTs.jl/issues/22
+            ".$(JWT(; payload))."
         end
     end
 end
@@ -110,7 +111,7 @@ macro authorize_aws(args...)
                 role_creds["SessionToken"],
                 assumed_role_user["Arn"];
                 expiry=$Dates.DateTime(rstrip(role_creds["Expiration"], 'Z')),
-                renew=() -> $_authorize_aws(role_arn; audience, role_session),
+                renew=() -> $_authorize_aws(role_arn; audience, role_session).creds,
             ))
         end
         $(Expr(:call, _authorize_aws, args...))
