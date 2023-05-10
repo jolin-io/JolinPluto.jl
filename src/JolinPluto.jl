@@ -111,7 +111,7 @@ macro authorize_aws(args...)
                 role_creds["SessionToken"],
                 assumed_role_user["Arn"];
                 expiry=$Dates.DateTime(rstrip(role_creds["Expiration"], 'Z')),
-                renew=() -> $_authorize_aws(role_arn; audience, role_session).creds,
+                renew=() -> $_authorize_aws(role_arn; audience, role_session).credentials,
             ))
         end
         $(Expr(:call, _authorize_aws, args...))
