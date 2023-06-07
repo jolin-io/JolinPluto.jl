@@ -178,8 +178,10 @@ macro output_below()
         pluto-notebook[swap_output] pluto-cell pluto-runarea {
 			order: 1;
 			position: relative;
-            right: -623px;
-            z-index: 20;
+			margin-left: auto;
+            height: 17px;
+            margin-bottom: -17px;
+			z-index: 20;
         }
         </style>
 
