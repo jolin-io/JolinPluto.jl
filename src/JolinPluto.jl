@@ -173,14 +173,12 @@ macro output_below()
             flex-direction: column;
         }
         pluto-notebook[swap_output] pluto-cell pluto-output {
-            order: 1;
+            order: 2;
         }
         pluto-notebook[swap_output] pluto-cell pluto-runarea {
-            top: 5px;
-            /* placing it left to the cell options: */
-            /* right: 14px; */
-            /* placing it right to the cell options: */
-            right: -80px;
+			order: 1;
+			position: relative;
+            right: -623px;
             z-index: 20;
         }
         </style>
