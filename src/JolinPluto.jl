@@ -20,7 +20,8 @@ function is_running_in_pluto_process()
 	# Also making sure my favorite goodies are present
 	isdefined(Main.PlutoRunner, :GiveMeCellID) &&
 	isdefined(Main.PlutoRunner, :GiveMeRerunCellFunction) &&
-	isdefined(Main.PlutoRunner, :GiveMeRegisterCleanupFunction)
+	isdefined(Main.PlutoRunner, :GiveMeRegisterCleanupFunction) &&
+    isdefined(Main.PlutoRunner, :publish_to_js)
 end
 
 
@@ -141,27 +142,25 @@ macro repeaton(
 	expr,
 	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
 )
-    if is_running_in_pluto_process()
-        # for updates why this macroexpand workaround see
-        # https://discourse.julialang.org/t/error-using-sync-async-within-macro-help-is-highly-appreciated/94080
-        _needs_macroexpand_ = quote
-            nexttime = $(esc(nexttime_from_now))()
-            begin
+    # just don't repeat if we are not inside Pluto
+    is_running_in_pluto_process() || return esc(expr)
+    nexttime = esc(nexttime_from_now)
+    if Meta.isexpr(nexttime_from_now, (:->, :function))
+        nexttime = Expr(:call, nexttime)
+    end
+    quote
+        nexttime = $nexttime
+        begin
+            diff = nexttime - $Dates.now()
+            while diff > $Dates.Millisecond(0)
+                sleep($(esc(sleeptime_from_diff))(diff))
                 diff = nexttime - $Dates.now()
-                while diff > $Dates.Millisecond(0)
-                    sleep($(esc(sleeptime_from_diff))(diff))
-                    diff = nexttime - $Dates.now()
-                end
             end
-            result = $(esc(expr))
-            rerun_cell_func = $(Main.PlutoRunner.GiveMeRerunCellFunction())
-            rerun_cell_func()
-            result
         end
-        macroexpand(__module__, _needs_macroexpand_)
-    else
-        # just don't repeat if we are not inside Pluto
-        esc(expr)
+        result = $(esc(expr))
+        rerun_cell_func = $(Main.PlutoRunner.GiveMeRerunCellFunction())
+        rerun_cell_func()
+        result
     end
 end
 
@@ -257,19 +256,31 @@ macro clipboard_image_to_clipboard_html()
 """))
 end
 
-
 # adapted from https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1536622637
+# and https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1551668938
 function embedLargeHTML(rawpagedata; kwargs...)
-	@htl """
-		<iframe src="about:blank" $(kwargs)></iframe>
-		<script>
-		    const embeddedFrame = currentScript.previousElementSibling;
-			const pagedata = atob($(base64encode(rawpagedata)));
-			embeddedFrame.contentWindow.document.open();
-			embeddedFrame.contentWindow.document.write(pagedata);
-			embeddedFrame.contentWindow.document.close();
-		</script>
-	"""
+    if is_running_in_pluto_process()
+        @htl """
+        <iframe src="about:blank" $(kwargs)></iframe>
+        <script>
+            const embeddedFrame = currentScript.previousElementSibling;
+            const pagedata = $(Main.PlutoRunner.publish_to_js(rawpagedata));
+            embeddedFrame.contentWindow.document.open();
+            embeddedFrame.contentWindow.document.write(pagedata);
+            embeddedFrame.contentWindow.document.close();
+        </script>
+        """
+    else
+        @htl """
+        <iframe src="about:blank" $(kwargs)></iframe>
+        <script>
+            const embeddedFrame = currentScript.previousElementSibling;
+            const pagedata = $rawpagedata;
+            embeddedFrame.contentWindow.document.open();
+            embeddedFrame.contentWindow.document.write(pagedata);
+            embeddedFrame.contentWindow.document.close();
+        </script>
+        """
+    end
 end
-
 end  # module
