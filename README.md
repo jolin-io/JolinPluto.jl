@@ -6,3 +6,11 @@
 [![Coverage](https://codecov.io/gh/jolin-io/JolinPluto.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/jolin-io/JolinPluto.jl)
 
 Welcome to our small collection of utility functions for [Pluto.jl](https://github.com/fonsp/Pluto.jl) running on [cloud.jolin.io](https://cloud.jolin.io).
+
+
+## Other common Pluto helpers
+
+Increase the width of the Pluto Notebook
+```julia
+html"""<style> main { max-width: 1400px; } </style>"""
+```

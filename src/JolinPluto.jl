@@ -34,7 +34,7 @@ macro get_jwt(audience="")
         @assert startswith(path, project_dir) "invalid workflow location"
         workflowpath = path[length(project_dir)+2:end]
         quote
-            response = $HTTP.get("http://jolin-workspace-server-jwts.default/request_jwt",
+            response = $HTTP.get("http://jolin-workspace-server-jwts.jolin-workspace-server/request_jwt",
                 query=["serviceaccount_token" => $serviceaccount_token,
                         "workflowpath" => $workflowpath,
                         "audience" => $(esc(audience))])
