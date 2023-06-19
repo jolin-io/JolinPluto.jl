@@ -1,7 +1,7 @@
 name = "JolinPluto"
 uuid = "5b0b4ef8-f4e6-4363-b674-3f031f7b9530"
 authors = ["Stephan Sahm <stephan.sahm@jolin.io> and contributors"]
-version = "0.1.16"
+version = "0.1.17"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"

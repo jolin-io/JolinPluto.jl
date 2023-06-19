@@ -143,8 +143,26 @@ end
     for arg in expr.args
         if isa(arg, Symbol)
             isdefined(Main, arg) || cont(arg)
+
         elseif isa(arg, Expr)
-            foreach(cont, _free_symbols(arg))
+			if arg.head ∈ (:function, :->)
+				call = arg.args[1]
+				body = arg.args[2]
+
+				func_args = if isa(call, Symbol)
+					(call,)
+				elseif call.head === :tuple
+					call.args
+				elseif call.head === :call
+					call.args[2:end]
+				end
+
+				foreach(_free_symbols(body)) do sym
+					sym ∈ func_args || cont(sym)
+				end
+			else
+            	foreach(cont, _free_symbols(arg))
+			end
         end
     end
 end
@@ -154,16 +172,26 @@ macro repeaton(
 	expr,
 	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
 )
-    nexttime = esc(nexttime_from_now)
+    # if the first argument is a function, we interpret the args reversed
     if Meta.isexpr(nexttime_from_now, (:->, :function))
-        nexttime = Expr(:call, nexttime)
-    end
-    runme = esc(expr)
-    deps = esc.(collect(_free_symbols(expr)))
+		time_as_arg = true
+        nexttime = esc(expr)
+		runme = esc(nexttime_from_now)
+	else
+		time_as_arg = false
+		nexttime = esc(nexttime_from_now)
+		if Meta.isexpr(expr, (:->, :function))
+			# if function syntax is used explicitly we assume that the user knows about the functionality
+			runme = esc(expr)
+		else
+			runme = esc(Expr(:->, gensym("t"), expr))
+		end
+	end
+    deps = esc.(unique!(collect(_free_symbols(runme))))
 
 	quote
 		let
-			_update, set_update = @use_state($runme)
+			_update, set_update = @use_state($runme($Dates.now()))
 			@use_task([$(deps...)]) do
                 while true
                     nexttime = $nexttime
@@ -172,7 +200,7 @@ macro repeaton(
                         sleep($(esc(sleeptime_from_diff))(diff))
                         diff = nexttime - $Dates.now()
                     end
-                    set_update($runme)
+                    set_update($runme(nexttime))
                 end
 			end
 			_update
