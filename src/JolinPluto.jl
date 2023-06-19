@@ -139,7 +139,7 @@ macro take_repeatedly!(expr)
 	end
 end
 
-@cont function _free_symbols(expr::Expr)
+@eval JolinPluto @cont function _free_symbols(expr::Expr)
     for arg in expr.args
         if isa(arg, Symbol)
             isdefined(Main, arg) || cont(arg)
@@ -159,6 +159,11 @@ end
 
 				foreach(_free_symbols(body)) do sym
 					sym ∈ func_args || cont(sym)
+				end
+			elseif arg.head === :ref
+				# this is indexing, where the symbols :end and :begin have special meaning
+				foreach(_free_symbols(arg)) do sym
+					sym ∈ (:begin, :end) || cont(sym)
 				end
 			else
             	foreach(cont, _free_symbols(arg))
