@@ -8,6 +8,8 @@ using HTTP, JSON3, Git, JWTs, Base64
 # TODO conditional dependency?
 using AWS
 using HypertextLiteral
+using PlutoHooks, PlutoLinks
+using Continuables
 
 # Taken from https://github.com/JuliaPluto/PlutoHooks.jl/blob/main/src/notebook.jl#L74-L86
 """
@@ -121,47 +123,61 @@ end
 
 # TODO add Azure, Google Cloud and HashiCorp
 
-macro take_repeatedly!(channel)
-    if is_running_in_pluto_process()
-        quote
-            result = take!($(esc(channel)))
-            rerun_cell_func = $(Main.PlutoRunner.GiveMeRerunCellFunction())
-            rerun_cell_func()
-            result
-        end
-    else
-        # if we are not inside pluto, we just take a single value
-        quote
-            take!($(esc(channel)))
+macro take_repeatedly!(expr)
+	quote
+		let
+			channel = $(esc(expr))
+			_update, set_update = @use_state(take!(channel))
+			@use_task([channel]) do
+				inner_channel = channel
+				for update in inner_channel
+					set_update(update)
+				end
+			end
+			_update
+		end
+	end
+end
+
+@cont function _free_symbols(expr::Expr)
+    for arg in expr.args
+        if isa(arg, Symbol)
+            isdefined(Main, arg) || cont(arg)
+        elseif isa(arg, Expr)
+            foreach(cont, _free_symbols(arg))
         end
     end
 end
 
 macro repeaton(
-	nexttime_from_now,
+    nexttime_from_now,
 	expr,
 	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
 )
-    # just don't repeat if we are not inside Pluto
-    is_running_in_pluto_process() || return esc(expr)
     nexttime = esc(nexttime_from_now)
     if Meta.isexpr(nexttime_from_now, (:->, :function))
         nexttime = Expr(:call, nexttime)
     end
-    quote
-        nexttime = $nexttime
-        begin
-            diff = nexttime - $Dates.now()
-            while diff > $Dates.Millisecond(0)
-                sleep($(esc(sleeptime_from_diff))(diff))
-                diff = nexttime - $Dates.now()
-            end
-        end
-        result = $(esc(expr))
-        rerun_cell_func = $(Main.PlutoRunner.GiveMeRerunCellFunction())
-        rerun_cell_func()
-        result
-    end
+    runme = esc(expr)
+    deps = esc.(collect(_free_symbols(expr)))
+
+	quote
+		let
+			_update, set_update = @use_state($runme)
+			@use_task([$(deps...)]) do
+                while true
+                    nexttime = $nexttime
+                    diff = nexttime - $Dates.now()
+                    while diff > $Dates.Millisecond(0)
+                        sleep($(esc(sleeptime_from_diff))(diff))
+                        diff = nexttime - $Dates.now()
+                    end
+                    set_update($runme)
+                end
+			end
+			_update
+		end
+	end
 end
 
 
