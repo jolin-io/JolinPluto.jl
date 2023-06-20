@@ -17,6 +17,7 @@ PlutoHooks = "0ff47ea0-7a50-410d-8455-4348d5de0774"
 PlutoLinks = "0ff47ea0-7a50-410d-8455-4348d5de0420"
 
 [compat]
+Continuables = "1"
 julia = "1.6"
 
 [extras]
