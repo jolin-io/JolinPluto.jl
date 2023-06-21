@@ -31,8 +31,8 @@ macro get_jwt(audience="")
     # Jolin Cloud
     if parse(Bool, get(ENV, "JOLIN_CLOUD", "false"))
         serviceaccount_token = readchomp("/var/run/secrets/kubernetes.io/serviceaccount/token")
-        project_dir = readchomp(`$(git()) rev-parse --show-toplevel`)
         path = split(String(__source__.file),"#==#")[1]
+        project_dir = readchomp(`$(git()) -C $(dirname(path)) rev-parse --show-toplevel`)
         @assert startswith(path, project_dir) "invalid workflow location"
         workflowpath = path[length(project_dir)+2:end]
         quote
@@ -130,9 +130,15 @@ macro take_repeatedly!(expr)
 			_update, set_update = @use_state(take!(channel))
 			@use_task([channel]) do
 				inner_channel = channel
-				for update in inner_channel
-					set_update(update)
-				end
+                while isopen(inner_channel)
+                    try
+                        for update in inner_channel
+                            set_update(update)
+                        end
+                    catch ex
+                        isa(ex, EOFError) || rethrow()
+                    end
+                end
 			end
 			_update
 		end
@@ -199,13 +205,17 @@ macro repeaton(
 			_update, set_update = @use_state($runme($Dates.now()))
 			@use_task([$(deps...)]) do
                 while true
-                    nexttime = $nexttime
-                    diff = nexttime - $Dates.now()
-                    while diff > $Dates.Millisecond(0)
-                        sleep($(esc(sleeptime_from_diff))(diff))
+                    try
+                        nexttime = $nexttime
                         diff = nexttime - $Dates.now()
+                        while diff > $Dates.Millisecond(0)
+                            sleep($(esc(sleeptime_from_diff))(diff))
+                            diff = nexttime - $Dates.now()
+                        end
+                        set_update($runme(nexttime))
+                    catch ex
+                        isa(ex, EOFError) || rethrow()
                     end
-                    set_update($runme(nexttime))
                 end
 			end
 			_update
