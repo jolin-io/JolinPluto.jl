@@ -127,7 +127,12 @@ end
 # the @use_task returns a task object which indeed updates on error
 # not sure whether this helps in our context
 
-macro take_repeatedly!(expr)
+
+# this is spawning a subprocess which continuously sets an update
+# this may mean that rerun_cell() is called several times, but only one rerun_cell is active
+# effectively this overwrites the hidden ref from use_state everytime, however retriggering is not fast enough to keep up to speed,
+# effectively loosing values, which should ideally not happen but buffered in the channel
+macro _take_repeatedly!(expr)
 	quote
 		let
 			channel = $(esc(expr))
@@ -142,6 +147,64 @@ macro take_repeatedly!(expr)
 		end
 	end
 end
+
+macro take_repeatedly!(channel)
+	quote
+		channel = $(esc(channel))
+		update, set_update = @use_state(take!(channel))
+		@use_task([update, channel]) do
+			_channel = channel
+			set_update(take!(_channel))
+			rerun_cell = $(PlutoRunner.GiveMeRerunCellFunction())
+			rerun_cell()
+		end
+		update
+	end
+end
+
+# this does not use an infinite process, but will spawn a new task every time
+macro _repeaton(
+	nexttime_from_now,
+	expr,
+	sleeptime_from_diff = diff -> max(div(diff,2), Dates.Millisecond(5))
+)
+    # if the first argument is a function, we interpret the args reversed
+    if Meta.isexpr(nexttime_from_now, (:->, :function))
+		time_as_arg = true
+        nexttime = esc(expr)
+		runme = esc(nexttime_from_now)
+	else
+		time_as_arg = false
+		nexttime = esc(nexttime_from_now)
+		if Meta.isexpr(expr, (:->, :function))
+			# if function syntax is used explicitly we assume that the user knows about the functionality
+			runme = esc(expr)
+		else
+			runme = esc(Expr(:->, gensym("t"), expr))
+		end
+	end
+
+    deps = esc.(unique!(vcat(
+        collect(_free_symbols(runme)),
+        collect(_free_symbols(nexttime)),
+    )))
+
+    quote
+        update, set_update = @use_state($runme($Dates.now()))
+        @use_task([update, $(deps...)]) do
+            nexttime = $nexttime
+            diff = nexttime - $Dates.now()
+            while diff > $Dates.Millisecond(0)
+                sleep($(esc(sleeptime_from_diff))(diff))
+                diff = nexttime - $Dates.now()
+            end
+            set_update($runme(nexttime))
+        end
+        update
+    end
+end
+
+
 
 _free_symbols(sym::Symbol) = @cont isdefined(Main, sym) || cont(sym)
 _free_symbols(other) = @cont ()
