@@ -138,6 +138,8 @@ macro take_repeatedly!(expr)
                     catch ex
                         if isa(ex, EOFError)
                             @warn "got this weird EOFError" exception=(ex, catch_backtrace())
+                            Core.println("got this weird EOFError")
+                            sleep(1)
                         else
                             rethrow()
                         end
@@ -223,6 +225,8 @@ macro repeaton(
                     catch ex
                         if isa(ex, EOFError)
                             @warn "got this weird EOFError" exception=(ex, catch_backtrace())
+                            Core.println("weird EOFError")
+                            sleep(1)
                         else
                             rethrow()
                         end
