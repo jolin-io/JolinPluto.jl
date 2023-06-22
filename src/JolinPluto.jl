@@ -136,7 +136,11 @@ macro take_repeatedly!(expr)
                             set_update(update)
                         end
                     catch ex
-                        isa(ex, EOFError) || rethrow()
+                        if isa(ex, EOFError)
+                            @warn "got this weird EOFError" exception=(ex, catch_backtrace())
+                        else
+                            rethrow()
+                        end
                     end
                 end
 			end
@@ -214,7 +218,11 @@ macro repeaton(
                         end
                         set_update($runme(nexttime))
                     catch ex
-                        isa(ex, EOFError) || rethrow()
+                        if isa(ex, EOFError)
+                            @warn "got this weird EOFError" exception=(ex, catch_backtrace())
+                        else
+                            rethrow()
+                        end
                     end
                 end
 			end
