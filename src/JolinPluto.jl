@@ -130,20 +130,8 @@ macro take_repeatedly!(expr)
 			_update, set_update = @use_state(take!(channel))
 			@use_task([channel]) do
 				inner_channel = channel
-                while isopen(inner_channel)
-                    try
-                        for update in inner_channel
-                            set_update(update)
-                        end
-                    catch ex
-                        if isa(ex, EOFError)
-                            @warn "got this weird EOFError" exception=(ex, catch_backtrace())
-                            Core.println("got this weird EOFError")
-                            sleep(1)
-                        else
-                            rethrow()
-                        end
-                    end
+                for update in inner_channel
+                    set_update(update)
                 end
 			end
 			_update
@@ -214,23 +202,13 @@ macro repeaton(
 			_update, set_update = @use_state($runme($Dates.now()))
 			@use_task([$(deps...)]) do
                 while true
-                    try
-                        nexttime = $nexttime
+                    nexttime = $nexttime
+                    diff = nexttime - $Dates.now()
+                    while diff > $Dates.Millisecond(0)
+                        sleep($(esc(sleeptime_from_diff))(diff))
                         diff = nexttime - $Dates.now()
-                        while diff > $Dates.Millisecond(0)
-                            sleep($(esc(sleeptime_from_diff))(diff))
-                            diff = nexttime - $Dates.now()
-                        end
-                        set_update($runme(nexttime))
-                    catch ex
-                        if isa(ex, EOFError)
-                            @warn "got this weird EOFError" exception=(ex, catch_backtrace())
-                            Core.println("weird EOFError")
-                            sleep(1)
-                        else
-                            rethrow()
-                        end
                     end
+                    set_update($runme(nexttime))
                 end
 			end
 			_update
