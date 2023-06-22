@@ -123,6 +123,10 @@ end
 
 # TODO add Azure, Google Cloud and HashiCorp
 
+# TODO add error handling - currently if something inside the task fails, it is unnoticed
+# the @use_task returns a task object which indeed updates on error
+# not sure whether this helps in our context
+
 macro take_repeatedly!(expr)
 	quote
 		let
@@ -139,38 +143,64 @@ macro take_repeatedly!(expr)
 	end
 end
 
-@eval JolinPluto @cont function _free_symbols(expr::Expr)
-    for arg in expr.args
-        if isa(arg, Symbol)
-            isdefined(Main, arg) || cont(arg)
+_free_symbols(sym::Symbol) = @cont isdefined(Main, sym) || cont(sym)
+_free_symbols(other) = @cont ()
 
-        elseif isa(arg, Expr)
-			if arg.head ∈ (:function, :->)
-				call = arg.args[1]
-				body = arg.args[2]
-
-				func_args = if isa(call, Symbol)
-					(call,)
-				elseif call.head === :tuple
-					call.args
-				elseif call.head === :call
-					call.args[2:end]
-				end
-
-				foreach(_free_symbols(body)) do sym
-					sym ∈ func_args || cont(sym)
-				end
-			elseif arg.head === :ref
-				# this is indexing, where the symbols :end and :begin have special meaning
-				foreach(_free_symbols(arg)) do sym
-					sym ∈ (:begin, :end) || cont(sym)
-				end
-			else
-            	foreach(cont, _free_symbols(arg))
-			end
-        end
-    end
+get_where_symbol(sym::Symbol) = sym
+function get_where_symbol(expr::Expr)
+	if expr.head === :comparison
+		expr.args[3]
+	elseif expr.head in (:(<:), :(>:))
+		expr.args[1]
+	else
+		error("should not happen")
+	end
 end
+
+@cont function _free_symbols(expr::Expr)
+	if expr.head ∈ (:function, :->)
+		call = expr.args[1]
+		body = expr.args[2]
+
+		func_args = if isa(call, Symbol)
+			(call,)
+		elseif call.head === :tuple
+			call.args
+		elseif call.head === :call
+			call.args[2:end]
+		end
+
+		foreach(_free_symbols(body)) do sym
+			sym ∈ func_args || cont(sym)
+		end
+	elseif expr.head === :ref
+		# this is indexing, where the symbols :end and :begin have special meaning
+		for arg in expr.args
+			foreach(_free_symbols(arg)) do sym
+				sym ∈ (:begin, :end) || cont(sym)
+			end
+		end
+	elseif expr.head === :where
+		where_symbols = get_where_symbol.(expr.args[2:end])
+		for arg in expr.args
+			foreach(_free_symbols(arg)) do sym
+				sym ∈ where_symbols || cont(sym)
+			end
+		end
+	else
+		defs = []
+		for arg in expr.args
+			if Meta.isexpr(arg, :(=))
+				push!(defs, arg.args[1])
+			end
+
+			foreach(_free_symbols(arg)) do sym
+				sym in defs || cont(sym)
+			end
+		end
+	end
+end
+
 
 macro repeaton(
     nexttime_from_now,
