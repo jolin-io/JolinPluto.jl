@@ -202,7 +202,10 @@ macro repeaton(
 			runme = esc(Expr(:->, gensym("t"), expr))
 		end
 	end
-    deps = esc.(unique!(collect(_free_symbols(runme))))
+    deps = esc.(unique!(vcat(
+        collect(_free_symbols(runme)),
+        collect(_free_symbols(nexttime)),
+    )))
 
 	quote
 		let
