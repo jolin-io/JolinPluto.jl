@@ -155,7 +155,7 @@ macro take_repeatedly!(channel)
 		@use_task([update, channel]) do
 			_channel = channel
 			set_update(take!(_channel))
-			rerun_cell = $(PlutoRunner.GiveMeRerunCellFunction())
+			rerun_cell = $(Main.PlutoRunner.GiveMeRerunCellFunction())
 			rerun_cell()
 		end
 		update
