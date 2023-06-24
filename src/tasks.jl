@@ -11,31 +11,25 @@ Like normal `Channel`, with the underlying task being interrupted
 as soon as the Pluto cell is deleted.
 """
 macro Channel(args...)
-    # TODO support keyword argumnts
+    PlutoHooks.is_running_in_pluto_process() || return quote
+		# just create a plain channel without cleanup
+		Channel($(map(esc, args)...))
+	end
 
 	# NOTE: no need to do exception handling as channel exceptions are thrown on take!
-    if PlutoHooks.is_running_in_pluto_process()
-        quote
-            taskref = Ref{Task}()
-            chnl = Channel($(map(esc, args)...); taskref=taskref)
-            register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
-            register_cleanup_fn() do
-                if !istaskdone(taskref[])
-                    try
-                        Base.schedule(taskref[], InterruptException(), error=true)
-                    catch error
-                        nothing
-                    end
-                end
-            end
-            chnl
-        end
-    else
-        # just create a plain channel without cleanup
-        quote
-            Channel($(map(esc, args)...))
-        end
-    end
+	taskref = Ref{Task}()
+	quote
+		# if cell is reloaded we stop the underlying process so that the previous Channel
+		# can be garbage collected
+		$(create_taskref_cleanup(taskref))()
+		chnl = Channel($(map(esc, args)...); taskref=$taskref)
+
+		if PlutoHooks.@use_did_deps_change([])
+			register_cleanup_fn = PlutoHooks.@give_me_register_cleanup_function
+			register_cleanup_fn($(create_taskref_cleanup(taskref)))
+		end
+		chnl
+	end
 end
 
 
@@ -53,43 +47,53 @@ function Base.showerror(io::IO, ex::ExceptionFromTask)
 end
 
 function errormonitor_pluto(set_error, t::Task)
-    t2 = Task() do
-        if istaskfailed(t)
-            local errs = stderr
-            sleep(2)
-            try # try to display the failure atomically
-                errstack = current_exceptions(t)
-                if !isempty(errstack) && isa(errstack[end].exception, SilentlyCancelTask)
-                    return nothing
-                end
-                errio = IOContext(PipeBuffer(), errs::IO)
-                Base.emphasize(errio, "Unhandled Task ")
-                Base.display_error(errio, Base.scrub_repl_backtrace(errstack))
-                set_error(ExceptionFromTask(errstack, read(errio, String)))
-            catch
-                try # try to display the secondary error atomically
-                    errstack = current_exceptions(t)
-                    errio = IOContext(PipeBuffer(), errs::IO)
+	t2 = Task() do
+		if istaskfailed(t)
+			local errs = stderr
+			sleep(2)
+			try # try to display the failure atomically
+				errstack = current_exceptions(t)
+				if (!isempty(errstack)
+					&& isa(errstack[end].exception, SilentlyCancelTask))
+					return nothing
+				end
+				# If take! fails, the exception from within the Channel is wrapped
+				# inside a TaskFailedException.
+				# We also support this for silent ignore
+				if (!isempty(errstack)
+					&& isa(errstack[end].exception, TaskFailedException)
+					&& isa(current_exceptions(errstack[end].exception.task)[end].exception, SilentlyCancelTask))
+					return nothing
+				end
 
-                    print(errio, "\nSYSTEM: caught exception while trying to print a failed Task notice: ")
-                    Base.display_error(errio, Base.scrub_repl_backtrace(current_exceptions()))
+				errio = IOContext(PipeBuffer(), errs::IO)
+				Base.emphasize(errio, "Unhandled Task ")
+				Base.display_error(errio, Base.scrub_repl_backtrace(errstack))
+				set_error(ExceptionFromTask(errstack, read(errio, String)))
+			catch
+				try # try to display the secondary error atomically
+					errstack = current_exceptions(t)
+					errio = IOContext(PipeBuffer(), errs::IO)
 
-                    # and then the actual error, as best we can
-                    print(errio, "\nwhile handling: ")
-                    println(errio, errstack[end][1])
-                    set_error(ExceptionFromTask(errstack, read(errio, String)))
-                catch e
-                    # give up
-                    Core.print(Core.stderr, "\nSYSTEM: caught exception of type ", typeof(e).name.name,
-                            " while trying to print a failed Task notice; giving up\n")
-                end
-            end
-        end
-        nothing
-    end
-    t2.sticky = false
-    Base._wait2(t, t2)
-    return t
+					print(errio, "\nSYSTEM: caught exception while trying to print a failed Task notice: ")
+					Base.display_error(errio, Base.scrub_repl_backtrace(current_exceptions()))
+
+					# and then the actual error, as best we can
+					print(errio, "\nwhile handling: ")
+					println(errio, errstack[end][1])
+					set_error(ExceptionFromTask(errstack, read(errio, String)))
+				catch e
+					# give up
+					Core.print(Core.stderr, "\nSYSTEM: caught exception of type ", typeof(e).name.name,
+							" while trying to print a failed Task notice; giving up\n")
+				end
+			end
+		end
+		nothing
+	end
+	t2.sticky = false
+	Base._wait2(t, t2)
+	return t
 end
 
 
@@ -114,12 +118,12 @@ macro use_state_reinit(init)
 end
 
 
-create_taskref_cleanup(taskref) = function ()
+create_taskref_cleanup(taskref, exception=SilentlyCancelTask) = function ()
 	isassigned(taskref) || return nothing
 	task = taskref[]
 	task !== nothing && !istaskdone(task) || return nothing
 	try
-		Base.schedule(task, SilentlyCancelTask(), error=true)
+		Base.schedule(task, exception(), error=true)
 	catch error
 		nothing
 	end
@@ -231,7 +235,7 @@ macro repeat_take!(channel)
 		# or the given variables. Normally the cell-id only changes when the
 		# cell is rerun manually. Exactly that often we need to register the
 		# cleanup function.
-		@use_deps([]) do
+		if PlutoHooks.@use_did_deps_change([])
 			register_cleanup_fn = PlutoHooks.@give_me_register_cleanup_function()
 			register_cleanup_fn($(create_taskref_cleanup(taskref)))
 		end
