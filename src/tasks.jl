@@ -168,7 +168,8 @@ macro repeat_run(
 	init = get(kwargs, :init, QuoteNode(:wait))
 	# by default wait for the first time
 	if init == QuoteNode(:wait)
-		init = quote
+		# for some reasons we need a let here to not interfere with other code
+		init = :(let
 			nexttime = $nexttime
 			diff = nexttime - $Dates.now()
 			while diff > $Dates.Millisecond(0)
@@ -176,7 +177,7 @@ macro repeat_run(
 				diff = nexttime - $Dates.now()
 			end
 			$runme(nexttime)
-		end
+		end)
 	else
 		init = esc(init)
 	end
