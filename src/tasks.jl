@@ -188,8 +188,15 @@ macro repeat_run(
 		$(esc(init))
 	end
 
-	taskref = Ref{Union{Nothing, Task}}(nothing)
+	taskref = Ref{Task}()
 	quote
+		# kill a possibly running task.
+		# even if this is refreshed by hook, there should not be any task running, hence
+		# this is almost a no-op.
+		# Note that this really needs to be run before init, as init may take! and block
+		# so that a possibly still running but invalid task would interfere.
+		$(create_taskref_cleanup(taskref))()
+
 		# use_did_deps_change([]) will return true if the cell id changes
 		# or the given variables. Normally the cell-id only changes when the
 		# cell is rerun manually. Exactly that often we need to register the
@@ -200,11 +207,6 @@ macro repeat_run(
 		end
 
 		update, set_update, hooked = @use_state_reinit($init)
-		if !hooked
-			# if the cell is manually reevaluated, let's kill the running task,
-			# so that no now invalid previous run can still effect us.
-			$(create_taskref_cleanup(taskref))()
-		end
 		isa(update, ExceptionFromTask) && throw(update)
 
 		taskref = $taskref
@@ -229,8 +231,15 @@ macro repeat_take!(channel)
 		take!($(esc(channel)))
 	end
 
-	taskref = Ref{Union{Nothing, Task}}(nothing)
+	taskref = Ref{Task}()
 	quote
+		# kill a possibly running task.
+		# even if this is refreshed by hook, there should not be any task running, hence
+		# this is almost a no-op.
+		# Note that this really needs to be run before init, as init may take! and block
+		# so that a possibly still running but invalid task would interfere.
+		$(create_taskref_cleanup(taskref))()
+
 		# use_did_deps_change([]) will return true if the cell id changes
 		# or the given variables. Normally the cell-id only changes when the
 		# cell is rerun manually. Exactly that often we need to register the
@@ -242,11 +251,6 @@ macro repeat_take!(channel)
 
 		channel = $(esc(channel))
 		update, set_update, hooked = @use_state_reinit(take!(channel))
-		if !hooked
-			# if the cell is reevaluated manually, let's kill the running task,
-			# so that no now invalid previous run can still effect us.
-			$(create_taskref_cleanup(taskref))()
-		end
 		isa(update, ExceptionFromTask) && throw(update)
 
 		taskref = $taskref
