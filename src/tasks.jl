@@ -195,7 +195,7 @@ macro repeat_run(
 			$runme(nexttime)
 		end)
 	elseif init == QuoteNode(:run)
-		init = $runme(nexttime)
+		init = :($runme($Dates.now()))
 	else
 		init = esc(init)
 	end
