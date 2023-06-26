@@ -132,6 +132,22 @@ end
 
 
 # this does not use an infinite process, but will spawn a new task every time
+"""
+	@repeat_run(ceil(now(), Second(10)), init=:wait) do t
+		# code to be returned repeatedly
+		rand(), t
+	end
+
+When run inside Pluto it will rerun the function on the next specified time.
+
+Keyword Arguments
+-----------------
+- `init` specifies what to do at first run or re-evaluation caused by standard
+  reactivity. You can specify any code or function call (e.g. `init=nothing`, or
+  `init=myinit()`). In addition there are two special values `:wait` und `:run`.
+  `:wait` (default) will wait for the next time and then run the code. `:run` will
+  run the code immediately without waiting.
+"""
 macro repeat_run(
 	fun,
 	nexttime_from_now,
@@ -178,6 +194,8 @@ macro repeat_run(
 			end
 			$runme(nexttime)
 		end)
+	elseif init == QuoteNode(:run)
+		init = $runme(nexttime)
 	else
 		init = esc(init)
 	end
@@ -226,7 +244,12 @@ macro repeat_run(
     end
 end
 
+"""
+	nextvalue = @repeat_take! channel
 
+This will repeatedly fetch for the next element from the given channel, re-evaluating
+the cell each time a new value arrives.
+"""
 macro repeat_take!(channel)
     PlutoHooks.is_running_in_pluto_process() || return quote
 		take!($(esc(channel)))
