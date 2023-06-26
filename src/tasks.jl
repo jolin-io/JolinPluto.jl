@@ -186,7 +186,7 @@ macro repeat_run(
 	# ------
 
 	PlutoHooks.is_running_in_pluto_process() || return quote
-		$(esc(init))
+		$init
 	end
 
 	taskref = Ref{Task}()
