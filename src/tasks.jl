@@ -24,8 +24,8 @@ macro Channel(args...)
 		$(create_taskref_cleanup(taskref))()
 		chnl = Channel($(map(esc, args)...); taskref=$taskref)
 
-		if PlutoHooks.@use_did_deps_change([])
-			register_cleanup_fn = PlutoHooks.@give_me_register_cleanup_function
+		if $PlutoHooks.@use_did_deps_change([])
+			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function
 			register_cleanup_fn($(create_taskref_cleanup(taskref)))
 		end
 		chnl
@@ -220,8 +220,8 @@ macro repeat_run(
 		# or the given variables. Normally the cell-id only changes when the
 		# cell is rerun manually. Exactly that often we need to register the
 		# cleanup function.
-		if PlutoHooks.@use_did_deps_change([])
-			register_cleanup_fn = PlutoHooks.@give_me_register_cleanup_function()
+		if $PlutoHooks.@use_did_deps_change([])
+			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
 			register_cleanup_fn($(create_taskref_cleanup(taskref)))
 		end
 
@@ -268,8 +268,8 @@ macro repeat_take!(channel)
 		# or the given variables. Normally the cell-id only changes when the
 		# cell is rerun manually. Exactly that often we need to register the
 		# cleanup function.
-		if PlutoHooks.@use_did_deps_change([])
-			register_cleanup_fn = PlutoHooks.@give_me_register_cleanup_function()
+		if $PlutoHooks.@use_did_deps_change([])
+			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
 			register_cleanup_fn($(create_taskref_cleanup(taskref)))
 		end
 

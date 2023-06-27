@@ -8,7 +8,7 @@ using HTTP, JSON3, Git, JWTs, Base64
 # TODO conditional dependency?
 using AWS
 using HypertextLiteral
-using PlutoHooks, PlutoLinks
+using PlutoHooks
 using Continuables
 
 include("authorize.jl")
