@@ -18,7 +18,7 @@ macro Channel(args...)
 
 	# NOTE: no need to do exception handling as channel exceptions are thrown on take!
 	taskref = Ref{Task}()
-	quote
+	:(let
 		# if cell is reloaded we stop the underlying process so that the previous Channel
 		# can be garbage collected
 		$(create_taskref_cleanup(taskref))()
@@ -29,7 +29,7 @@ macro Channel(args...)
 			register_cleanup_fn($(create_taskref_cleanup(taskref)))
 		end
 		chnl
-	end
+	end)
 end
 
 
@@ -103,7 +103,7 @@ macro use_state_reinit(init)
 		updated_by_hooks_ref[] = true
 		set_update(arg)
 	end
-	quote
+	:(let
 		update, set_update = @use_state(nothing)
 		hooked = $updated_by_hooks_ref[]
 		if !hooked
@@ -114,11 +114,11 @@ macro use_state_reinit(init)
 		# reset to false for a new round
 		$updated_by_hooks_ref[] = false
 		update, $upgrade_set_update(set_update), hooked
-	end
+	end)
 end
 
 
-create_taskref_cleanup(taskref, exception=SilentlyCancelTask) = function ()
+create_taskref_cleanup(taskref, exception=SilentlyCancelTask) = function taskref_cleanup_function()
 	isassigned(taskref) || return nothing
 	task = taskref[]
 	task !== nothing && !istaskdone(task) || return nothing
@@ -208,7 +208,7 @@ macro repeat_run(
 	end
 
 	taskref = Ref{Task}()
-	quote
+	:(let
 		# kill a possibly running task.
 		# even if this is refreshed by hook, there should not be any task running, hence
 		# this is almost a no-op.
@@ -241,7 +241,7 @@ macro repeat_run(
 		errormonitor_pluto(set_update, taskref[])
 		schedule(taskref[])
         update
-    end
+    end)
 end
 
 """
@@ -256,7 +256,7 @@ macro repeat_take!(channel)
 	end
 
 	taskref = Ref{Task}()
-	quote
+	:(let
 		# kill a possibly running task.
 		# even if this is refreshed by hook, there should not be any task running, hence
 		# this is almost a no-op.
@@ -288,5 +288,5 @@ macro repeat_take!(channel)
 		# this way adapting other cells can indeed auto-update this cell
 		errormonitor_pluto(set_update, taskref[])
 		update
-	end
+	end)
 end
