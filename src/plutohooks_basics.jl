@@ -30,7 +30,7 @@ Outside a Pluto cell it will throw an error.
 """
 macro give_me_rerun_cell_function()
 	if is_running_in_pluto_process()
-		:(dont_be_pluto_special_value($(Main.PlutoRunner.GiveMeRerunCellFunction())))
+		:($(Main.PlutoRunner.GiveMeRerunCellFunction()))
 	else
 		:(throw(NotRunningInPlutoCellException()))
 	end
@@ -47,9 +47,7 @@ Outside a Pluto cell it will throw an error.
 """
 macro give_me_register_cleanup_function()
 	if is_running_in_pluto_process()
-		:(dont_be_pluto_special_value(
-			$(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
-		))
+		:($(Main.PlutoRunner.GiveMeRegisterCleanupFunction()))
 	else
 		:(throw(NotRunningInPlutoCellException()))
 	end
