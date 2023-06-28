@@ -57,3 +57,28 @@ end
 		end
 	end
 end
+
+
+
+
+
+macro use_state_reinit(init)
+	updated_by_hooks_ref = Ref(false)
+	upgrade_set_update(set_update) = function set_update_upgraded(arg)
+		updated_by_hooks_ref[] = true
+		set_update(arg)
+	end
+	:(let
+		update, set_update = @use_state(nothing)
+		hooked = $updated_by_hooks_ref[]
+		if !hooked
+			# if we are not updated by hooks, but by other triggers, we also want to reinitiate things
+			# this is also for the first time, which is why we do not need the standard init value above
+			update = $(esc(init))
+		end
+		# reset to false for a new round
+		$updated_by_hooks_ref[] = false
+		update, $upgrade_set_update(set_update), hooked
+	end)
+end
+

@@ -1,7 +1,9 @@
 module JolinPluto
 
-# we use macros for everything to release mental load here
-export @get_jwt, @authorize_aws, @repeat_take!, @repeat_run, @output_below, @Channel, @clipboard_image_to_clipboard_html
+# we use macros for everything, releasing mental load
+export @get_jwt, @authorize_aws
+export @repeat_take!, @repeat_at, @repeat_run, @Channel
+export @output_below, @clipboard_image_to_clipboard_html
 
 using Dates
 using HTTP, JSON3, Git, JWTs, Base64

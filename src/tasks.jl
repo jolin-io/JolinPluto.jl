@@ -1,38 +1,5 @@
-
-"""
-    channel = @Channel(10) do ch
-        for i in 1:10
-            put!(ch, i)
-            sleep(1)
-        end
-    end
-
-Like normal `Channel`, with the underlying task being interrupted
-as soon as the Pluto cell is deleted.
-"""
-macro Channel(args...)
-    PlutoHooks.is_running_in_pluto_process() || return quote
-		# just create a plain channel without cleanup
-		Channel($(map(esc, args)...))
-	end
-
-	# NOTE: no need to do exception handling as channel exceptions are thrown on take!
-	taskref = Ref{Task}()
-	:(let
-		# if cell is reloaded we stop the underlying process so that the previous Channel
-		# can be garbage collected
-		$(create_taskref_cleanup(taskref))()
-		chnl = Channel($(map(esc, args)...); taskref=$taskref)
-
-		if $PlutoHooks.@use_did_deps_change([])
-			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function
-			register_cleanup_fn($(create_taskref_cleanup(taskref)))
-		end
-		chnl
-	end)
-end
-
-
+# Helpers
+# -------
 
 struct SilentlyCancelTask <: Exception end
 
@@ -97,27 +64,6 @@ function errormonitor_pluto(set_error, t::Task)
 end
 
 
-macro use_state_reinit(init)
-	updated_by_hooks_ref = Ref(false)
-	upgrade_set_update(set_update) = function set_update_upgraded(arg)
-		updated_by_hooks_ref[] = true
-		set_update(arg)
-	end
-	:(let
-		update, set_update = @use_state(nothing)
-		hooked = $updated_by_hooks_ref[]
-		if !hooked
-			# if we are not updated by hooks, but by other triggers, we also want to reinitiate things
-			# this is also for the first time, which is why we do not need the standard init value above
-			update = $(esc(init))
-		end
-		# reset to false for a new round
-		$updated_by_hooks_ref[] = false
-		update, $upgrade_set_update(set_update), hooked
-	end)
-end
-
-
 create_taskref_cleanup(taskref, exception=SilentlyCancelTask) = function taskref_cleanup_function()
 	isassigned(taskref) || return nothing
 	task = taskref[]
@@ -130,15 +76,82 @@ create_taskref_cleanup(taskref, exception=SilentlyCancelTask) = function taskref
 end
 
 
+# Key macros
+# ----------
+
+
+"""
+	@repeat_run(expr_used_for_init_and_repeated_execution)
+	@repeat_run(expr_for_init, expr_for_repetition)
+
+Repeat some long expression. It will run offline in a separate Task so that
+interactivity is preserved.
+
+Optionally, specify another expression for initialization. Initialization will
+also be triggered if the cell is re-evaluated because some dependent cell or bond
+changed.
+"""
+macro repeat_run(init, repeatme=init)
+	init = esc(init)
+	repeatme = esc(repeatme)
+
+	PlutoHooks.is_running_in_pluto_process() || return quote
+		$init
+	end
+
+	hooked = Ref(false)
+	update = Ref{Any}()
+	rerun = Ref{Any}()
+	task = Ref{Task}()
+	function set_update(value)
+		hooked[] = true
+		update[] = value
+		isassigned(rerun) && rerun[]()
+		value
+	end
+	firsttime = Ref(true)
+	:(let
+		$(create_taskref_cleanup(task))()
+		$rerun[] = $PlutoHooks.@give_me_rerun_cell_function
+
+		if $firsttime[]
+			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
+			register_cleanup_fn($(create_taskref_cleanup(task)))
+			$firsttime[] = false
+		end
+
+		# check for errors by errormonitor
+		isassigned($update) && isa($update[], $ExceptionFromTask) && throw($update[])
+
+		# if triggered by other cell or bond
+		if !$hooked[]
+			$update[] = $init
+		else
+			# if triggered by hook we don't run initialization
+			# but need to reinit the hook Ref to false
+			$hooked[] = false
+		end
+		$task[] = Task() do
+			$set_update($repeatme)
+		end
+
+		$errormonitor_pluto($set_update, $task[])
+		schedule($task[])
+		$update[]
+	end)
+end
+
+
 
 # this does not use an infinite process, but will spawn a new task every time
 """
-	@repeat_run(ceil(now(), Second(10)), init=:wait) do t
+	@repeat_at(ceil(now(), Second(10)), init=:wait) do t
 		# code to be returned repeatedly
 		rand(), t
 	end
 
-When run inside Pluto it will rerun the function on the next specified time.
+When run inside Pluto it will rerun the function on the next specified time, again
+and again.
 
 Keyword Arguments
 -----------------
@@ -148,7 +161,7 @@ Keyword Arguments
   `:wait` (default) will wait for the next time and then run the code. `:run` will
   run the code immediately without waiting.
 """
-macro repeat_run(
+macro repeat_at(
 	fun,
 	nexttime_from_now,
 	keywords...,
@@ -180,20 +193,24 @@ macro repeat_run(
 		for expr in keywords
 	)
 	sleeptime_from_diff = get(kwargs, :sleeptime_from_diff, diff -> max(div(diff,2), Dates.Millisecond(5)))
+	sleeptime_from_diff = esc(sleeptime_from_diff)
+
+	# wrap runme in wait
+	wait_and_runme = :(let
+		nexttime = $nexttime
+		diff = nexttime - $Dates.now()
+		while diff > $Dates.Millisecond(0)
+			sleep($sleeptime_from_diff(diff))
+			diff = nexttime - $Dates.now()
+		end
+		$runme(nexttime)
+	end)
 
 	init = get(kwargs, :init, QuoteNode(:wait))
 	# by default wait for the first time
 	if init == QuoteNode(:wait)
 		# for some reasons we need a let here to not interfere with other code
-		init = :(let
-			nexttime = $nexttime
-			diff = nexttime - $Dates.now()
-			while diff > $Dates.Millisecond(0)
-				sleep($(esc(sleeptime_from_diff))(diff))
-				diff = nexttime - $Dates.now()
-			end
-			$runme(nexttime)
-		end)
+		init = wait_and_runme
 	elseif init == QuoteNode(:run)
 		init = :($runme($Dates.now()))
 	else
@@ -203,45 +220,7 @@ macro repeat_run(
 	# return
 	# ------
 
-	PlutoHooks.is_running_in_pluto_process() || return quote
-		$init
-	end
-
-	taskref = Ref{Task}()
-	:(let
-		# kill a possibly running task.
-		# even if this is refreshed by hook, there should not be any task running, hence
-		# this is almost a no-op.
-		# Note that this really needs to be run before init, as init may take! and block
-		# so that a possibly still running but invalid task would interfere.
-		$(create_taskref_cleanup(taskref))()
-
-		# use_did_deps_change([]) will return true if the cell id changes
-		# or the given variables. Normally the cell-id only changes when the
-		# cell is rerun manually. Exactly that often we need to register the
-		# cleanup function.
-		if $PlutoHooks.@use_did_deps_change([])
-			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
-			register_cleanup_fn($(create_taskref_cleanup(taskref)))
-		end
-
-		update, set_update, hooked = @use_state_reinit($init)
-		isa(update, ExceptionFromTask) && throw(update)
-
-		taskref = $taskref
-		taskref[] = Task() do
-			nexttime = $nexttime
-			diff = nexttime - $Dates.now()
-			while diff > $Dates.Millisecond(0)
-				sleep($(esc(sleeptime_from_diff))(diff))
-				diff = nexttime - $Dates.now()
-			end
-			set_update($runme(nexttime))
-        end
-		errormonitor_pluto(set_update, taskref[])
-		schedule(taskref[])
-        update
-    end)
+	:($JolinPluto.@repeat_run $init $wait_and_runme)
 end
 
 """
@@ -251,42 +230,43 @@ This will repeatedly fetch for the next element from the given channel, re-evalu
 the cell each time a new value arrives.
 """
 macro repeat_take!(channel)
+	channel = esc(channel)
+	:($JolinPluto.@repeat_run take!($channel))
+end
+
+
+
+"""
+    channel = @Channel(10) do ch
+        for i in 1:10
+            put!(ch, i)
+            sleep(1)
+        end
+    end
+
+Like normal `Channel`, with the underlying task being interrupted
+as soon as the Pluto cell is deleted.
+"""
+macro Channel(args...)
     PlutoHooks.is_running_in_pluto_process() || return quote
-		take!($(esc(channel)))
+		# just create a plain channel without cleanup
+		Channel($(map(esc, args)...))
 	end
 
-	taskref = Ref{Task}()
+	# NOTE: no need to do exception handling as channel exceptions are thrown on take!
+	task = Ref{Task}()
+	firsttime = Ref(true)
 	:(let
-		# kill a possibly running task.
-		# even if this is refreshed by hook, there should not be any task running, hence
-		# this is almost a no-op.
-		# Note that this really needs to be run before init, as init may take! and block
-		# so that a possibly still running but invalid task would interfere.
-		$(create_taskref_cleanup(taskref))()
+		# if cell is reloaded we stop the underlying process so that the previous Channel
+		# can be garbage collected
+		$(create_taskref_cleanup(task))()
+		chnl = Channel($(map(esc, args)...); taskref=$task)
 
-		# use_did_deps_change([]) will return true if the cell id changes
-		# or the given variables. Normally the cell-id only changes when the
-		# cell is rerun manually. Exactly that often we need to register the
-		# cleanup function.
-		if $PlutoHooks.@use_did_deps_change([])
+		if $firsttime[]
 			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
-			register_cleanup_fn($(create_taskref_cleanup(taskref)))
+			register_cleanup_fn($(create_taskref_cleanup(task)))
+			$firsttime[] = false
 		end
-
-		channel = $(esc(channel))
-		update, set_update, hooked = @use_state_reinit(take!(channel))
-		isa(update, ExceptionFromTask) && throw(update)
-
-		taskref = $taskref
-		taskref[] = Task() do
-			_channel = channel
-			set_update(take!(_channel))
-		end
-		schedule(taskref[])
-		# because every exception in the Channel is stable
-		# we can do the Exception check after scheduling the task
-		# this way adapting other cells can indeed auto-update this cell
-		errormonitor_pluto(set_update, taskref[])
-		update
+		chnl
 	end)
 end
