@@ -95,7 +95,7 @@ macro repeat_run(init, repeatme=init)
 	init = esc(init)
 	repeatme = esc(repeatme)
 
-	PlutoHooks.is_running_in_pluto_process() || return quote
+	JolinPluto.is_running_in_pluto_process() || return quote
 		$init
 	end
 
@@ -112,10 +112,10 @@ macro repeat_run(init, repeatme=init)
 	firsttime = Ref(true)
 	:(let
 		$(create_taskref_cleanup(task))()
-		$rerun[] = $PlutoHooks.@give_me_rerun_cell_function
+		$rerun[] = $JolinPluto.@give_me_rerun_cell_function
 
 		if $firsttime[]
-			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
+			register_cleanup_fn = $JolinPluto.@give_me_register_cleanup_function()
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
 		end
@@ -248,7 +248,7 @@ Like normal `Channel`, with the underlying task being interrupted
 as soon as the Pluto cell is deleted.
 """
 macro Channel(args...)
-    PlutoHooks.is_running_in_pluto_process() || return quote
+    is_running_in_pluto_process() || return quote
 		# just create a plain channel without cleanup
 		Channel($(map(esc, args)...))
 	end
@@ -263,7 +263,7 @@ macro Channel(args...)
 		chnl = Channel($(map(esc, args)...); taskref=$task)
 
 		if $firsttime[]
-			register_cleanup_fn = $PlutoHooks.@give_me_register_cleanup_function()
+			register_cleanup_fn = $JolinPluto.@give_me_register_cleanup_function()
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
 		end
