@@ -120,9 +120,6 @@ macro repeat_run(init, repeatme=init)
 			$firsttime[] = false
 		end
 
-		# check for errors by errormonitor
-		isassigned($update) && isa($update[], $ExceptionFromTask) && throw($update[])
-
 		# if triggered by other cell or bond
 		if !$hooked[]
 			$update[] = $init
@@ -131,6 +128,10 @@ macro repeat_run(init, repeatme=init)
 			# but need to reinit the hook Ref to false
 			$hooked[] = false
 		end
+
+		# check for errors by errormonitor before starting new Task but after re-initialization
+		isassigned($update) && isa($update[], $ExceptionFromTask) && throw($update[])
+
 		$task[] = Task() do
 			$set_update($repeatme)
 		end
