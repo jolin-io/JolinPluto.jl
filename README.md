@@ -15,7 +15,7 @@ Here a few highlights
 | `@repeat_take!` | takes the next element from a channel, again and again and again |
 | `@repeat_at` | runs an expr at a specified next time, again and again and again |
 
-For more see the [documentation](https://jolin-io.github.io/JolinPluto.jl/dev/).
+For more details see the [documentation](https://jolin-io.github.io/JolinPluto.jl/dev/).
 
 ## Other common Pluto helpers
 
