@@ -1,7 +1,7 @@
 name = "JolinPluto"
 uuid = "5b0b4ef8-f4e6-4363-b674-3f031f7b9530"
 authors = ["Stephan Sahm <stephan.sahm@jolin.io> and contributors"]
-version = "0.1.38"
+version = "0.1.39"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
@@ -15,7 +15,7 @@ JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 JWTs = "d850fbd6-035d-5a70-a269-1ca2e636ac6c"
 
 [compat]
-julia = "1.6"
+julia = "1.7"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
