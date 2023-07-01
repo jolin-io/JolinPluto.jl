@@ -1,4 +1,12 @@
+"""
+    @get_jwt
+    @get_jwt "exampleaudience"
 
+Creates a JSON Web Token which can be used for authentication at common cloud providers.
+
+On cloud.jolin.io the token will be issued and signed by cloud.jolin.io,
+on Github Actions (used for automated tests), a respective github token is returned.
+"""
 macro get_jwt(audience="")
     # Jolin Cloud
     if parse(Bool, get(ENV, "JOLIN_CLOUD", "false"))
@@ -47,7 +55,7 @@ end
 Assume role via web identity. How to define such a role can be found here
 https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-configure-role-oidc
 
-CAUTION: Please note that th semicolon is really important! `@authorize_aws(role_arn, audience="myaudience")` won't work as of now.
+CAUTION: Please note that the semicolon is really important! `@authorize_aws(role_arn, audience="myaudience")` won't work as of now.
 """
 macro authorize_aws(args...)
     mydateformat = Dates.dateformat"yyyymmdd\THHMMSS\Z"

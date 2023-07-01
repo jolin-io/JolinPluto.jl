@@ -1,4 +1,9 @@
+"""
+    @output_below
 
+Reverse input output, first input then output. When removing the cell with
+`@output_below`, the order is reversed again.
+"""
 macro output_below()
     result = @htl """
         <style>
@@ -29,6 +34,13 @@ macro output_below()
     QuoteNode(result)
 end
 
+"""
+   @clipboard_image_to_clipboard_html
+
+Creates a little textfield where you can paste images. These images are then transformed
+to self-containing html img tags and copied back to the clipboard to be entered
+somewhere in Pluto.
+"""
 macro clipboard_image_to_clipboard_html()
 	QuoteNode(HTML(raw"""
 <div contentEditable = true>
@@ -54,6 +66,17 @@ end
 
 # adapted from https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1536622637
 # and https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1551668938
+"""
+    embedLargeHTML(html_string; width, height)
+
+For large HTML code a simple iframe is not enough. This function will help.
+
+Example
+-------
+```julia
+JolinPluto.embedLargeHTML(read("figure.html", String); width="100%", height=400)
+```
+"""
 function embedLargeHTML(rawpagedata; kwargs...)
     if PlutoHooks.is_running_in_pluto_process()
         @htl """
