@@ -78,27 +78,20 @@ JolinPluto.embedLargeHTML(read("figure.html", String); width="100%", height=400)
 ```
 """
 function embedLargeHTML(rawpagedata; kwargs...)
-    if PlutoHooks.is_running_in_pluto_process()
-        @htl """
-        <iframe src="about:blank" $(kwargs)></iframe>
-        <script>
-            const embeddedFrame = currentScript.previousElementSibling;
-            const pagedata = $(Main.PlutoRunner.publish_to_js(rawpagedata));
-            embeddedFrame.contentWindow.document.open();
-            embeddedFrame.contentWindow.document.write(pagedata);
-            embeddedFrame.contentWindow.document.close();
-        </script>
-        """
+    pagedata = if is_running_in_pluto_process()
+        Main.PlutoRunner.publish_to_js(rawpagedata)
     else
-        @htl """
-        <iframe src="about:blank" $(kwargs)></iframe>
-        <script>
-            const embeddedFrame = currentScript.previousElementSibling;
-            const pagedata = $rawpagedata;
-            embeddedFrame.contentWindow.document.open();
-            embeddedFrame.contentWindow.document.write(pagedata);
-            embeddedFrame.contentWindow.document.close();
-        </script>
-        """
+        rawpagedata
     end
+
+    return @htl """
+    <iframe src="about:blank" $(kwargs)></iframe>
+    <script>
+        const embeddedFrame = currentScript.previousElementSibling;
+        const pagedata = $pagedata;
+        embeddedFrame.contentWindow.document.open();
+        embeddedFrame.contentWindow.document.write(pagedata);
+        embeddedFrame.contentWindow.document.close();
+    </script>
+    """
 end
