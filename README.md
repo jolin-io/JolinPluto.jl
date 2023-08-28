@@ -14,6 +14,8 @@ Here a few highlights
 | `@repeat_run` | runs an expr again and again and again |
 | `@repeat_take!` | takes the next element from a channel, again and again and again |
 | `@repeat_at` | runs an expr at a specified next time, again and again and again |
+| `@Channel` | Pluto-friendly wrapper around standard Base.Channel |
+| `Setter`, `@get` | easy interface to create custom reactivity |
 
 For more details see the [documentation](https://jolin-io.github.io/JolinPluto.jl/dev/).
 

@@ -1,0 +1,135 @@
+# Core Setter implementation
+# --------------------------
+
+"""
+    Setter()
+    Setter("initial_value")
+
+Creates a pluto interactivity which separates the setter cell from the state cell.
+
+# Usage
+
+```julia
+set_a = Setter("initial_value")
+
+# in another cell, extract the inner state from the setter
+# such that updates will rerun this cell
+a = @get set_a
+
+# in yet another cell use `set_a`
+set_a("new_value")
+
+# or use a function syntax to easily access the previous value
+set_a() do prev_a
+    "\$prev_a!!"
+end
+```
+"""
+mutable struct Setter{T}
+	value::T
+	just_created::Bool
+	rerun::Union{Nothing, Function}
+	Setter() = new{Any}(nothing, true, nothing)
+	Setter(initial_value::T) where T = new{T}(initial_value, true, nothing)
+	Setter{T}(initial_value) where T = new{T}(initial_value, true, nothing)
+end
+
+function (setter::Setter)(value)
+	# this little boolean distinguishes normal reexecution (recreation) from rerun execution.
+	setter.just_created = false
+	setter.value = value
+	setter.rerun !== nothing && setter.rerun()
+	nothing
+end
+
+function (setter::Setter)(func::Function)
+	# this little boolean distinguishes normal reexecution (recreation) from rerun execution.
+	setter.just_created = false
+	setter.value = func(setter.value)
+	setter.rerun !== nothing && setter.rerun()
+	nothing
+end
+
+# traits support by default
+getsetter(setter::Setter) = setter
+Base.get(setter::Setter) = setter.value
+
+
+macro get(setter)
+	setter = esc(setter)
+	firsttime = Ref(true)
+	quote
+		setter = getsetter($setter)
+		if $firsttime[] || setter.just_created
+			rerun = @give_me_rerun_cell_function
+			if setter.rerun !== nothing
+				@error "`@get` was already called on the setter. Only use one invocation of `@get` per setter."
+			end
+			setter.rerun = rerun
+
+            if $firsttime[]
+                $firsttime[] = false
+                cleanup = @give_me_register_cleanup_function
+                cleanup() do
+                    if setter.rerun === rerun
+                        setter.rerun = nothing
+                    end
+                end
+            end
+        end
+		get(setter)
+	end
+end
+
+
+
+# Concrete Application - Collecting Cellids behind the Scenes
+# --------------------
+
+"""
+    cell_ids_wrapper = @cell_ids_create_wrapper()
+
+Creates a wrapper around a Set of cell_ids so that they can be added (and removed)
+seamlessly and automatically from other cells.
+
+# Usage
+```julia
+cell_ids_wrapper = @cell_ids_create_wrapper()
+
+# in another cell access the cellids and e.g. print the url suffix
+cell_ids = @get cell_ids_wrapper
+print(join("&isolated_cell_id=\$id" for id in cell_ids))
+
+# in yet another cell add its cell_id
+@cell_ids_push! cell_ids_wrapper
+```
+"""
+macro cell_ids_create_wrapper()
+	QuoteNode(Setter(Set()))
+end
+
+"""
+    @cell_ids_push! cell_ids_wrapper
+
+Adds the cell's cell-id to the given cell_ids_wrapper.
+This automatically handles retriggering of cells as needed.
+
+Also cleanup is handled, i.e. that the cell-id is removed again if this cell is deleted.
+"""
+macro cell_ids_push!(setter)
+	setter = esc(setter)
+	quote
+		setter = getsetter($setter)
+		cell_id = @give_me_the_pluto_cell_id
+		setter() do cell_ids
+			push!(cell_ids, cell_id)
+		end
+		cleanup = @give_me_register_cleanup_function
+		cleanup() do
+			setter() do cell_ids
+				delete!(cell_ids, cell_id)
+			end
+		end
+		nothing
+	end
+end

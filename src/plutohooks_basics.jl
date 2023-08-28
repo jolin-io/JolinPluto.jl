@@ -20,6 +20,24 @@ function Base.showerror(io::IO, expr::NotRunningInPlutoCellException)
 end
 
 
+
+"""
+	@give_me_the_pluto_cell_id()
+
+> ⚠️ Don't use this directly!! if you think you need it, you might actually need [`@use_did_deps_change([])`](@ref) but even that is unlikely.
+
+Used inside a Pluto cell this will resolve to the current cell UUID.
+Outside a Pluto cell it will throw an error.
+"""
+macro give_me_the_pluto_cell_id()
+	if is_running_in_pluto_process()
+		:($(Main.PlutoRunner.GiveMeCellID()))
+	else
+		:(throw(NotRunningInPlutoCellException()))
+	end
+end
+
+
 """
 	@give_me_rerun_cell_function()
 
