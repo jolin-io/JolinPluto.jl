@@ -58,6 +58,7 @@ Base.get(setter::Setter) = setter.value
 macro get(setter)
 	setter = esc(setter)
 	firsttime = Ref(true)
+	is_running_in_pluto_process() || return :($setter.value)
 	quote
 		setter = getsetter($setter)
 		if $firsttime[] || setter.just_created
@@ -118,6 +119,8 @@ Also cleanup is handled, i.e. that the cell-id is removed again if this cell is 
 """
 macro cell_ids_push!(setter)
 	setter = esc(setter)
+	# if this is not run inside Pluto, we just don't add a cell_id
+	is_running_in_pluto_process() || return QuoteNode(nothing)
 	quote
 		setter = getsetter($setter)
 		cell_id = @give_me_the_pluto_cell_id
