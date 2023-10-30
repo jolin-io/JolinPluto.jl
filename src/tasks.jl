@@ -111,10 +111,8 @@ macro repeat_run(init, repeatme=init)
 	end
 	firsttime = Ref(true)
 	:(let
-		$(create_taskref_cleanup(task))()
-		$rerun[] = $JolinPluto.@give_me_rerun_cell_function
-
 		if $firsttime[]
+			$rerun[] = $JolinPluto.@give_me_rerun_cell_function
 			register_cleanup_fn = $JolinPluto.@give_me_register_cleanup_function()
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
@@ -122,6 +120,10 @@ macro repeat_run(init, repeatme=init)
 
 		# if triggered by other cell or bond
 		if !$hooked[]
+			# then we want to cancel the currently running task because it is ill-defined
+			$(JolinPluto.create_taskref_cleanup(task))()
+			isassigned($task) && Base._wait($task[])  # Base._wait is like wait, but without rethrowing an error
+			# only after the task is really finished, start initialization
 			$update[] = $init
 		else
 			# if triggered by hook we don't run initialization
@@ -142,6 +144,71 @@ macro repeat_run(init, repeatme=init)
 	end)
 end
 
+
+const pluto_cell_cache = Dict{UUID, Function}()
+"""
+	repeat_run(function_used_for_init_and_repeated_execution)
+	repeat_run(function_for_init, function_for_repetition)
+
+Repeat some long expression. It will run offline in a separate Task so that
+interactivity is preserved.
+
+Optionally, specify another expression for initialization. Initialization will
+also be triggered if the cell is re-evaluated because some dependent cell or bond
+changed.
+"""
+function repeat_run(init, repeatme=init)
+	is_running_in_pluto_process() || return init()
+	firsttime = Main.PlutoRunner.currently_running_cell_user_requested_run[]
+	cell_id = Main.PlutoRunner.currently_running_cell_id[]
+
+	if firsttime
+		hooked = Ref(false)
+		update = Ref{Any}()
+		task = Ref{Task}()
+
+		Main.PlutoRunner.UseEffectCleanups.register_cleanup(create_taskref_cleanup(task), cell_id)
+		Main.PlutoRunner.UseEffectCleanups.register_cleanup(cell_id) do
+			haskey(pluto_cell_cache, cell_id) && delete!(pluto_cell_cache, cell_id)
+		end
+
+		function set_update(value)
+			hooked[] = true
+			update[] = value
+			Main.PlutoRunner.rerun_cell_from_notebook(cell_id)
+			value
+		end
+
+		function _repeat_this_(init, repeatme)
+			if !hooked[]throw
+				# cancel the current task when rerun. We always start a new task to work smoothely with cell disabling
+				create_taskref_cleanup(task)()
+				isassigned(task) && Base._wait(task[])  # Base._wait does not throw an exception
+				update[] = init()
+			else
+				# if triggered by hook we don't run initialization
+				# but need to reinit the hook Ref to false
+				hooked[] = false
+			end
+
+			# check for errors by errormonitor before starting new Task but after re-initialization
+			isassigned(update) && isa(update[], ExceptionFromTask) && throw(update[])
+
+			task[] = Task() do
+				sleep(0.0)
+				set_update(repeatme())
+			end
+
+			errormonitor_pluto(set_update, task[])
+			schedule(task[])
+			update[]
+		end
+		pluto_cell_cache[cell_id] = _repeat_this_
+		_repeat_this_(init, repeatme)
+	else
+		pluto_cell_cache[cell_id](init, repeatme)
+	end
+end
 
 
 # this does not use an infinite process, but will spawn a new task every time
@@ -224,6 +291,57 @@ macro repeat_at(
 	:($JolinPluto.@repeat_run $init $wait_and_runme)
 end
 
+
+
+"""
+	repeat_at(ceil(now(), Second(10)), init=:wait) do t
+		# code to be returned repeatedly
+		rand(), t
+	end
+
+When run inside Pluto it will rerun the function on the next specified time, again
+and again.
+
+Keyword Arguments
+-----------------
+- `init` specifies what to do at first run or re-evaluation caused by standard
+  reactivity. You can specify any function (e.g. `init=myinit_func`)or one of the two special values `:wait` und `:run`.
+  `:wait` (default) will wait for the next time and then run the code. `:run` will
+  run the code immediately without waiting.
+"""
+function repeat_at(
+	repeatme,
+	nexttime_from_now;
+	init=:wait, # alternatives: `:run` or another function
+	sleeptime_from_diff=diff -> max(div(diff,2), Dates.Millisecond(5)),
+)
+
+	# wrap runme in wait
+	function wait_and_repeatme()
+		nexttime = nexttime_from_now
+		diff = nexttime - Dates.now()
+		while diff > Dates.Millisecond(0)
+			sleep(sleeptime_from_diff(diff))
+			diff = nexttime - Dates.now()
+		end
+		repeatme(nexttime)
+	end
+
+	# by default wait for the first time
+	if init == :wait
+		# for some reasons we need a let here to not interfere with other code
+		init = wait_and_repeatme
+	elseif init == QuoteNode(:run)
+		init = () -> repeatme(Dates.now())
+	end
+
+	# return
+	# ------
+
+	repeat_run(init, wait_and_repeatme)
+end
+
+
 """
 	nextvalue = @repeat_take! channel
 
@@ -235,6 +353,16 @@ macro repeat_take!(channel)
 	:($JolinPluto.@repeat_run take!($channel))
 end
 
+
+"""
+	nextvalue = repeat_take!(channel)
+
+This will repeatedly fetch for the next element from the given channel, re-evaluating
+the cell each time a new value arrives.
+"""
+function repeat_take!(channel)
+	repeat_run(() -> take!(channel))
+end
 
 
 """
@@ -270,4 +398,43 @@ macro Channel(args...)
 		end
 		chnl
 	end)
+end
+
+
+"""
+    channel = ChannelPluto(10) do ch
+        for i in 1:10
+            put!(ch, i)
+            sleep(1)
+        end
+    end
+
+Like normal `Channel`, with the underlying task being interrupted
+as soon as the Pluto cell is deleted.
+"""
+function ChannelPluto(args...; kwargs...)
+    is_running_in_pluto_process() || return Channel(args...; kwargs...) # just create a plain channel without cleanup
+	firsttime = Main.PlutoRunner.currently_running_cell_user_requested_run[]
+	cell_id = Main.PlutoRunner.currently_running_cell_id[]
+
+	if firsttime
+		task = Ref{Task}()
+		Main.PlutoRunner.UseEffectCleanups.register_cleanup(create_taskref_cleanup(task), cell_id)
+		Main.PlutoRunner.UseEffectCleanups.register_cleanup(cell_id) do
+			haskey(pluto_cell_cache, cell_id) && delete!(pluto_cell_cache, cell_id)
+		end
+		function _ChannelPluto(args...; kwargs...)
+			# NOTE: no need to do exception handling as channel exceptions are thrown on take!
+			# if cell is reloaded we stop the underlying process so that the previous Channel
+			# can be garbage collected
+			create_taskref_cleanup(task)()
+			isassigned(task) && Base._wait(task[])  # Base._wait does not throw an exception
+
+			Channel(args...; kwargs..., taskref=task)
+		end
+		pluto_cell_cache[cell_id] = _ChannelPluto
+		_ChannelPluto(args...; kwargs...)
+	else
+		pluto_cell_cache[cell_id](args...; kwargs...)
+	end
 end
