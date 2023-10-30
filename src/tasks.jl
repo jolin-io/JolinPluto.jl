@@ -179,8 +179,8 @@ function repeat_run(init, repeatme=init)
 			value
 		end
 
-		function _repeat_this_(init, repeatme)
-			if !hooked[]throw
+		function _repeat_run(init, repeatme)
+			if !hooked[]
 				# cancel the current task when rerun. We always start a new task to work smoothely with cell disabling
 				create_taskref_cleanup(task)()
 				isassigned(task) && Base._wait(task[])  # Base._wait does not throw an exception
@@ -203,8 +203,8 @@ function repeat_run(init, repeatme=init)
 			schedule(task[])
 			update[]
 		end
-		pluto_cell_cache[cell_id] = _repeat_this_
-		_repeat_this_(init, repeatme)
+		pluto_cell_cache[cell_id] = _repeat_run
+		_repeat_run(init, repeatme)
 	else
 		pluto_cell_cache[cell_id](init, repeatme)
 	end
