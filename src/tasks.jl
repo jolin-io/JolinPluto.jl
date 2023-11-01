@@ -159,7 +159,7 @@ changed.
 """
 function repeat_run(init, repeatme=init)
 	is_running_in_pluto_process() || return init()
-	firsttime = Main.PlutoRunner.currently_running_cell_user_requested_run[]
+	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
 	cell_id = Main.PlutoRunner.currently_running_cell_id[]
 
 	if firsttime
@@ -294,6 +294,8 @@ end
 
 
 """
+	repeat_at(t -> (rand(), t), ceil(now(), Second(10)), init=:wait)
+
 	repeat_at(ceil(now(), Second(10)), init=:wait) do t
 		# code to be returned repeatedly
 		rand(), t
@@ -414,7 +416,7 @@ as soon as the Pluto cell is deleted.
 """
 function ChannelPluto(args...; kwargs...)
     is_running_in_pluto_process() || return Channel(args...; kwargs...) # just create a plain channel without cleanup
-	firsttime = Main.PlutoRunner.currently_running_cell_user_requested_run[]
+	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
 	cell_id = Main.PlutoRunner.currently_running_cell_id[]
 
 	if firsttime

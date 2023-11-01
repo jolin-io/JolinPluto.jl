@@ -2,10 +2,13 @@ module JolinPluto
 
 # we use macros for everything, releasing mental load
 export @get_jwt, @authorize_aws
+export get_jwt, authorize_aws
 export @repeat_take!, @repeat_at, @repeat_run, @Channel
 export repeat_take!, repeat_at, repeat_run, ChannelPluto
 export @output_below, @clipboard_image_to_clipboard_html
+export output_below, clipboard_image_to_clipboard_html
 export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
+export cell_ids_create_wrapper, cell_ids_push!
 
 using Dates
 using HTTP, JSON3, Git, JWTs, UUIDs, Base64

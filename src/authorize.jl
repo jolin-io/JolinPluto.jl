@@ -49,6 +49,55 @@ macro get_jwt(audience="")
     end
 end
 
+
+"""
+    get_jwt()
+    get_jwt("exampleaudience")
+
+Creates a JSON Web Token which can be used for authentication at common cloud providers.
+
+On cloud.jolin.io the token will be issued and signed by cloud.jolin.io,
+on Github Actions (used for automated tests), a respective github token is returned.
+"""
+function get_jwt(audience="")
+    # Jolin Cloud
+    if parse(Bool, get(ENV, "JOLIN_CLOUD", "false"))
+        serviceaccount_token = readchomp("/var/run/secrets/kubernetes.io/serviceaccount/token")
+        path = Main.PlutoRunner.notebook_path[]
+        project_dir = readchomp(`$(git()) -C $(dirname(path)) rev-parse --show-toplevel`)
+        @assert startswith(path, project_dir) "invalid workflow location"
+        workflowpath = path[length(project_dir)+2:end]
+
+        response = HTTP.get("http://jolin-workspace-server-jwts.jolin-workspace-server/request_jwt",
+            query=["serviceaccount_token" => serviceaccount_token,
+                   "workflowpath" => workflowpath,
+                   "audience" => audience])
+        JSON3.read(response.body).token
+    # Github Actions
+    elseif (parse(Bool, get(ENV, "CI", "false"))
+            && haskey(ENV, "ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+            && haskey(ENV, "ACTIONS_ID_TOKEN_REQUEST_URL"))
+        response = HTTP.get(ENV["ACTIONS_ID_TOKEN_REQUEST_URL"],
+            query=["audience" => audience],
+            headers=["Authorization" => "bearer " * ENV["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]])
+        # the token is in subfield value https://blog.alexellis.io/deploy-without-credentials-using-oidc-and-github-actions/
+        JSON3.read(response.body).value
+    # Fallback with Dummy Value
+    else
+        payload = Dict(
+            "iss" => "http://www.example.com/",
+            "sub" => "/env/YOUR_ENV/github.com/YOUR_ORGANIZATION/YOUR_REPO/PATH/TO/WORKFLOW",
+            "aud" => audience,
+            "exp" => 1536080651,
+            "iat" => 1535994251,
+        )
+        # for details see https://github.com/tanmaykm/JWTs.jl/issues/22
+        jwt = JWT(; payload)
+        ".$jwt."
+    end
+end
+
+
 """
     @authorize_aws(role_arn; audience="")
 
@@ -99,6 +148,56 @@ macro authorize_aws(args...)
         end
         $(Expr(:call, _authorize_aws, args...))
     end)
+end
+
+
+"""
+    authorize_aws(role_arn; audience="")
+
+Assume role via web identity. How to define such a role can be found here
+https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-configure-role-oidc
+
+CAUTION: Please note that the semicolon is really important! `@authorize_aws(role_arn, audience="myaudience")` won't work as of now.
+"""
+function authorize_aws(args...)
+    mydateformat = Dates.dateformat"yyyymmdd\THHMMSS\Z"
+    # we define a function in a macro, so that we can use @get_jwt macro (which needs the location)
+    # as well as use `renew`` argument, which requires a function
+    function _authorize_aws(role_arn; audience="", role_session::Union{AbstractString,Nothing}=nothing)
+        if isnothing(role_session)
+            role_session = AWS._role_session_name(
+                "jolincloud-role-",
+                basename(role_arn),
+                "-" * Dates.format(Dates.now(Dates.UTC), mydateformat),
+            )
+        end
+        # we need to be cautious that @get_jwt is called with the same __source__
+        web_identity = get_jwt(audience)
+
+        response = AWS.AWSServices.sts(
+            "AssumeRoleWithWebIdentity",
+            Dict(
+                "RoleArn" => role_arn,
+                "RoleSessionName" => role_session,  # Required by AssumeRoleWithWebIdentity
+                "WebIdentityToken" => web_identity,
+            );
+            aws_config=AWS.AWSConfig(; creds=nothing),
+            feature_set=AWS.FeatureSet(; use_response_type=true),
+        )
+        dict = parse(response)
+        role_creds = dict["AssumeRoleWithWebIdentityResult"]["Credentials"]
+        assumed_role_user = dict["AssumeRoleWithWebIdentityResult"]["AssumedRoleUser"]
+
+        return AWS.global_aws_config(creds=AWS.AWSCredentials(
+            role_creds["AccessKeyId"],
+            role_creds["SecretAccessKey"],
+            role_creds["SessionToken"],
+            assumed_role_user["Arn"];
+            expiry=Dates.DateTime(rstrip(role_creds["Expiration"], 'Z')),
+            renew=() -> _authorize_aws(role_arn; audience, role_session).credentials,
+        ))
+    end
+    _authorize_aws(args...)
 end
 
 # TODO add Azure, Google Cloud and HashiCorp

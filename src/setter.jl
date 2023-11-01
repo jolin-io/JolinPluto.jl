@@ -52,7 +52,6 @@ end
 
 # traits support by default
 getsetter(setter::Setter) = setter
-Base.get(setter::Setter) = setter.value
 
 
 macro get(setter)
@@ -78,10 +77,34 @@ macro get(setter)
                 end
             end
         end
-		get(setter)
+		setter.value
 	end
 end
 
+
+
+function Base.get(setter::Setter)
+	is_running_in_pluto_process() || return setter.value
+	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
+
+	if firsttime || setter.just_created
+		cell_id = Main.PlutoRunner.currently_running_cell_id[]
+		if setter.rerun !== nothing
+			@error "`get` was already called on the setter. Only use one invocation of `get` per setter."
+		end
+		rerun = () -> Main.PlutoRunner.rerun_cell_from_notebook(cell_id)
+		setter.rerun = rerun
+		if firsttime
+			Main.PlutoRunner.UseEffectCleanups.register_cleanup(cell_id) do
+				if setter.rerun === rerun
+					setter.rerun = nothing
+				end
+			end
+		end
+	else
+		setter.value
+	end
+end
 
 
 # Concrete Application - Collecting Cellids behind the Scenes
@@ -109,6 +132,28 @@ macro cell_ids_create_wrapper()
 	QuoteNode(Setter(Set()))
 end
 
+
+"""
+    cell_ids_wrapper = cell_ids_create_wrapper()
+
+Creates a wrapper around a Set of cell_ids so that they can be added (and removed)
+seamlessly and automatically from other cells.
+
+# Usage
+```julia
+cell_ids_wrapper = cell_ids_create_wrapper()
+
+# in another cell access the cellids and e.g. print the url suffix
+cell_ids = get(cell_ids_wrapper)
+print(join("&isolated_cell_id=\$id" for id in cell_ids))
+
+# in yet another cell add its cell_id
+cell_ids_push!(cell_ids_wrapper)
+```
+"""
+cell_ids_create_wrapper() = Setter(Set())
+
+
 """
     @cell_ids_push! cell_ids_wrapper
 
@@ -135,4 +180,34 @@ macro cell_ids_push!(setter)
 		end
 		nothing
 	end
+end
+
+
+"""
+    cell_ids_push!(cell_ids_wrapper)
+
+Adds the cell's cell-id to the given cell_ids_wrapper.
+This automatically handles retriggering of cells as needed.
+
+Also cleanup is handled, i.e. that the cell-id is removed again if this cell is deleted.
+"""
+function cell_ids_push!(setter::Setter)
+	# if this is not run inside Pluto, we just don't add a cell_id
+	is_running_in_pluto_process() || return nothing
+
+	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
+	cell_id = Main.PlutoRunner.currently_running_cell_id[]
+
+	if firsttime
+		Main.PlutoRunner.UseEffectCleanups.register_cleanup(cell_id) do
+			setter() do cell_ids
+				delete!(cell_ids, cell_id)
+			end
+		end
+	end
+
+	setter() do cell_ids
+		push!(cell_ids, cell_id)
+	end
+	nothing
 end

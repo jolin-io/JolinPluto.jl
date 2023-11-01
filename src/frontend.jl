@@ -5,34 +5,42 @@ Reverse input output, first input then output. When removing the cell with
 `@output_below`, the order is reversed again.
 """
 macro output_below()
-    result = @htl """
-        <style>
-        pluto-notebook[swap_output] pluto-cell {
-            display: flex;
-            flex-direction: column;
-        }
-        pluto-notebook[swap_output] pluto-cell pluto-output {
-            order: 2;
-        }
-        pluto-notebook[swap_output] pluto-cell pluto-runarea {
-			order: 1;
-			position: relative;
-			margin-left: auto;
-            height: 17px;
-            margin-bottom: -17px;
-			z-index: 20;
-        }
-        </style>
-
-        <script>
-        const plutoNotebook = document.querySelector("pluto-notebook")
-        plutoNotebook.setAttribute('swap_output', "")
-        /* invalidation is a pluto feature and will be triggered when the cell is deleted */
-        invalidation.then(() => cell.removeAttribute("swap_output"))
-        </script>
-        """
+    result = output_below()
     QuoteNode(result)
 end
+
+"""
+    output_below()
+
+Reverse input output, first input then output. When removing the cell with
+`@output_below`, the order is reversed again.
+"""
+output_below() = @htl """
+    <style>
+    pluto-notebook[swap_output] pluto-cell {
+        display: flex;
+        flex-direction: column;
+    }
+    pluto-notebook[swap_output] pluto-cell pluto-output {
+        order: 2;
+    }
+    pluto-notebook[swap_output] pluto-cell pluto-runarea {
+        order: 1;
+        position: relative;
+        margin-left: auto;
+        height: 17px;
+        margin-bottom: -17px;
+        z-index: 20;
+    }
+    </style>
+
+    <script>
+    const plutoNotebook = document.querySelector("pluto-notebook")
+    plutoNotebook.setAttribute('swap_output', "")
+    /* invalidation is a pluto feature and will be triggered when the cell is deleted */
+    invalidation.then(() => cell.removeAttribute("swap_output"))
+    </script>
+    """
 
 """
    @clipboard_image_to_clipboard_html
@@ -42,27 +50,37 @@ to self-containing html img tags and copied back to the clipboard to be entered
 somewhere in Pluto.
 """
 macro clipboard_image_to_clipboard_html()
-	QuoteNode(HTML(raw"""
-<div contentEditable = true>
-	<script>
-	const div = currentScript.parentElement
-	const img = div.querySelector("img")
-	const p = div.querySelector("p")
-
-	div.onpaste = function(e) {
-        var data = e.clipboardData.items[0].getAsFile();
-        var fr = new FileReader;
-        fr.onloadend = function() {
-            // fr.result is all data
-		    let juliastr = `html"<img src='${fr.result}'/>"`;
-		    navigator.clipboard.writeText(juliastr);
-        };
-        fr.readAsDataURL(data);
-    };
-	</script>
-</div>
-"""))
+	QuoteNode(clipboard_image_to_clipboard_html())
 end
+
+"""
+   clipboard_image_to_clipboard_html()
+
+Creates a little textfield where you can paste images. These images are then transformed
+to self-containing html img tags and copied back to the clipboard to be entered
+somewhere in Pluto.
+"""
+
+clipboard_image_to_clipboard_html() = HTML(raw"""
+    <div contentEditable = true>
+        <script>
+        const div = currentScript.parentElement
+        const img = div.querySelector("img")
+        const p = div.querySelector("p")
+
+        div.onpaste = function(e) {
+            var data = e.clipboardData.items[0].getAsFile();
+            var fr = new FileReader;
+            fr.onloadend = function() {
+                // fr.result is all data
+                let juliastr = `html"<img src='${fr.result}'/>"`;
+                navigator.clipboard.writeText(juliastr);
+            };
+            fr.readAsDataURL(data);
+        };
+        </script>
+    </div>
+    """)
 
 # adapted from https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1536622637
 # and https://github.com/fonsp/Pluto.jl/issues/2551#issuecomment-1551668938
