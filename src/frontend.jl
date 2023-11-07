@@ -97,7 +97,7 @@ JolinPluto.embedLargeHTML(read("figure.html", String); width="100%", height=400)
 """
 function embedLargeHTML(rawpagedata; kwargs...)
     pagedata = if is_running_in_pluto_process()
-        Main.PlutoRunner.publish_to_js(rawpagedata)
+        AbstractPlutoDingetjes.Display.published_to_js(rawpagedata)
     else
         rawpagedata
     end
