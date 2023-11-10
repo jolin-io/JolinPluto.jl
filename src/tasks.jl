@@ -440,3 +440,15 @@ function ChannelPluto(args...; kwargs...)
 		pluto_cell_cache[cell_id](args...; kwargs...)
 	end
 end
+
+
+
+"""
+	repeat_queueget(python_queue_threaded)
+
+Will repeatedly get elements from the queue and trigger a rerun of the current cell.
+Outside pluto it will just wait for the first element to arrive and return that.
+
+IMPORTANT: This function is only available if `import PythonCall` was executed before `import JolinPluto`.
+"""
+function repeat_queueget end
