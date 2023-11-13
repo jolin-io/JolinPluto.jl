@@ -366,6 +366,7 @@ function repeat_take!(channel)
 	repeat_run(() -> take!(channel))
 end
 
+const repeat_take = repeat_take!
 
 """
     channel = @Channel(10) do ch

@@ -211,3 +211,5 @@ function cell_ids_push!(setter::Setter)
 	end
 	nothing
 end
+
+const cell_ids_push = cell_ids_push!
