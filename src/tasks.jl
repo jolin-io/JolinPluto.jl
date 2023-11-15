@@ -343,6 +343,18 @@ function repeat_at(
 	repeat_run(init, wait_and_repeatme)
 end
 
+struct NoPutType end
+const NoPut = NoPutType()
+
+function repeat_put_at(channel, getvalue, nexttime)
+	repeat_at(nexttime) do time
+		value = getvalue(time)
+		value === NoPut && return
+		put!(channel, value)
+		value
+	end
+end
+
 
 """
 	nextvalue = @repeat_take! channel
