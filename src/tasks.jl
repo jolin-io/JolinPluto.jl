@@ -210,6 +210,31 @@ function repeat_run(init, repeatme=init)
 	end
 end
 
+"""
+separates args and kwargs (kwargs are returned as Dict)
+"""
+function _split_macro_args(args)
+	_kwargs = []
+	if Meta.isexpr(args[1], :parameters)
+		append!(_kwargs, args[1].args)
+		args = args[2:end]
+	end
+	i_kwargs = findfirst(x -> Meta.isexpr(x, :(=)) || Meta.isexpr(x, :kw), args)
+	if i_kwargs !== nothing
+		append!(_kwargs, args[i_kwargs:end])
+		args = args[begin:i_kwargs-1]
+	end
+	@assert all(_kwargs) do kw
+		Meta.isexpr(kw, :(=)) || Meta.isexpr(kw, :kw)
+	end
+	kwargs = Dict(
+		expr.args[1] => expr.args[2]
+		for expr in _kwargs
+	)
+	return args, kwargs
+end
+
+
 
 # this does not use an infinite process, but will spawn a new task every time
 """
@@ -217,6 +242,8 @@ end
 		# code to be returned repeatedly
 		rand(), t
 	end
+
+	@repeat_at(ceil(now(), Second(10)), init=:wait)
 
 When run inside Pluto it will rerun the function on the next specified time, again
 and again.
@@ -230,10 +257,20 @@ Keyword Arguments
   run the code immediately without waiting.
 """
 macro repeat_at(
-	fun,
-	nexttime_from_now,
-	keywords...,
+	args...
 )
+	args, kwargs = _split_macro_args(args)
+	if length(args) == 2
+		fun = args[1]
+		nexttime_from_now = args[2]
+	elseif length(args) == 1
+		# if only one positional arg is given, this is the time
+		fun = nothing
+		nexttime_from_now = args[1]
+	else
+		error("Possible signatures are `repeat_at(func, nexttime, init=:wait)`, `repeat_at(nexttime, init=:wait)`, ...")
+	end
+
 	# parse input expressions
 	# -----------------------
 	nexttime = esc(nexttime_from_now)
@@ -244,7 +281,7 @@ macro repeat_at(
 		elseif Meta.isexpr(fun.args[1], :tuple)
 			length(fun.args[1].args)
 		end
-		@assert nargs <= 1
+		@assert nargs <= 1 "Make sure that your repeated function has maximally 1 argument."
 		if nargs == 0
 			fun.args[1] = Expr(:tuple, gensym(:t))
 		end
@@ -253,13 +290,6 @@ macro repeat_at(
 		runme = esc(Expr(:->, gensym("t"), fun))
 	end
 
-	@assert all(keywords) do kw
-		Meta.isexpr(kw, :(=)) || Meta.isexpr(kw, :kw)
-	end
-	kwargs = Dict(
-		expr.args[1] => expr.args[2]
-		for expr in keywords
-	)
 	sleeptime_from_diff = get(kwargs, :sleeptime_from_diff, diff -> max(div(diff,2), Dates.Millisecond(5)))
 	sleeptime_from_diff = esc(sleeptime_from_diff)
 
@@ -333,7 +363,7 @@ function repeat_at(
 	if init == :wait
 		# for some reasons we need a let here to not interfere with other code
 		init = wait_and_repeatme
-	elseif init == QuoteNode(:run)
+	elseif init == :run
 		init = () -> repeatme(Dates.now())
 	end
 
@@ -343,11 +373,22 @@ function repeat_at(
 	repeat_run(init, wait_and_repeatme)
 end
 
+repeat_at(nexttime; kwargs...) = repeat_at(() -> nothing, nexttime; kwargs...)
+
+
+
 struct NoPutType end
 const NoPut = NoPutType()
 
-function repeat_put_at(channel, getvalue, nexttime)
-	repeat_at(nexttime) do time
+"""
+	repeat_put_at(channel, (time) -> value, nexttime)
+
+Use this function from other languages which cannot safely run `put!(channel, value)`.
+This ensures that the put! is called from julia, circumventing segmentation faults
+because of async switch inside another-language-function.
+"""
+function repeat_put_at(channel, getvalue, nexttime; kwargs...)
+	repeat_at(nexttime; kwargs...) do time
 		value = getvalue(time)
 		value !== NoPut && put!(channel, value)
 		value
