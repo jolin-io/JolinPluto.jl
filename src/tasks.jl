@@ -373,27 +373,7 @@ function repeat_at(
 	repeat_run(init, wait_and_repeatme)
 end
 
-repeat_at(nexttime; kwargs...) = repeat_at(() -> nothing, nexttime; kwargs...)
-
-
-
-struct NoPutType end
-const NoPut = NoPutType()
-
-"""
-	repeat_put_at(channel, (time) -> value, nexttime)
-
-Use this function from other languages which cannot safely run `put!(channel, value)`.
-This ensures that the put! is called from julia, circumventing segmentation faults
-because of async switch inside another-language-function.
-"""
-function repeat_put_at(channel, getvalue, nexttime; kwargs...)
-	repeat_at(nexttime; kwargs...) do time
-		value = getvalue(time)
-		value !== NoPut && put!(channel, value)
-		value
-	end
-end
+repeat_at(nexttime; kwargs...) = repeat_at((time) -> nothing, nexttime; kwargs...)
 
 
 """
@@ -495,6 +475,29 @@ function ChannelPluto(args...; kwargs...)
 end
 
 
+struct NoPutType end
+const NoPut = NoPutType()
+
+"""
+	ChannelWithRepeatedFill(get_next_value, 2; sleep_seconds=1.0)
+
+Creates a ChannelPluto which calls `get_next_value` repeatedly, interleaved by calls to
+sleep of the given time (defaults to 0 seconds sleep).
+"""
+function ChannelWithRepeatedFill(get_next_value, args...; sleep_seconds=0.0, kwargs...)
+	ChannelPluto(args...; kwargs...) do ch
+		while true
+			value = get_next_value()
+			value !== NoPut && put!(ch, value)
+			sleep(sleep_seconds)
+		end
+	end
+end
+
+
+# TODO create Pluto queue analog for Python which automatically kills the previous thread if one was started
+
+
 
 """
 	repeat_queueget(python_queue_threaded)
@@ -505,3 +508,14 @@ Outside pluto it will just wait for the first element to arrive and return that.
 IMPORTANT: This function is only available if `import PythonCall` was executed before `import JolinPluto`.
 """
 function repeat_queueget end
+
+
+"""
+    start_python_thread(func)  # `func` gets stop_event as the only argument
+
+Like `threading.Thread(target=func, args=(threading.Event(),)).start()`, but such that the Event
+is integrated into Pluto and will be automatically set if the thread should stop itself.
+
+IMPORTANT: This function is only available if `import PythonCall` was executed before `import JolinPluto`.
+"""
+function start_python_thread end

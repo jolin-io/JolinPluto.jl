@@ -4,7 +4,7 @@ module JolinPluto
 export @get_jwt, @authorize_aws
 export get_jwt, authorize_aws
 export @repeat_take!, @repeat_at, @repeat_run, @Channel
-export repeat_take!, repeat_take, repeat_at, repeat_run, ChannelPluto, repeat_queueget, repeat_put_at, NoPut
+export repeat_take!, repeat_take, repeat_at, repeat_run, ChannelPluto, repeat_queueget, ChannelWithRepeatedFill, NoPut, start_python_thread
 export @output_below, @clipboard_image_to_clipboard_html
 export output_below, clipboard_image_to_clipboard_html, embedLargeHTML
 export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
