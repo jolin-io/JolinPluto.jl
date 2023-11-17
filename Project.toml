@@ -1,10 +1,9 @@
 name = "JolinPluto"
 uuid = "5b0b4ef8-f4e6-4363-b674-3f031f7b9530"
 authors = ["Stephan Sahm <stephan.sahm@jolin.io> and contributors"]
-version = "0.1.53"
+version = "0.1.54"
 
 [deps]
-AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
 AbstractPlutoDingetjes = "6e696c72-6542-2067-7265-42206c756150"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 Continuables = "79afa230-ca09-11e8-120b-5decf7bf5e25"
@@ -17,10 +16,14 @@ JWTs = "d850fbd6-035d-5a70-a269-1ca2e636ac6c"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [weakdeps]
+AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 
 [extensions]
 PythonExt = "PythonCall"
+PlotsExt = "Plots"
+AWSExt = "AWS"
 
 [compat]
 julia = "1.7"

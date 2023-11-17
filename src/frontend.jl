@@ -113,3 +113,14 @@ function embedLargeHTML(rawpagedata; kwargs...)
     </script>
     """
 end
+
+
+"""
+    plotly_responsive()
+    plotly_responsive(plot_object)
+
+IMPORTANT: Works only if `plotly()` backend is activated
+
+Makes the plotly plot responsive and returns the new plot.
+"""
+function plotly_responsive end  # See this issue for updates https://github.com/JuliaPlots/Plots.jl/issues/4775

@@ -106,50 +106,7 @@ https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-con
 
 CAUTION: Please note that the semicolon is really important! `@authorize_aws(role_arn, audience="myaudience")` won't work as of now.
 """
-macro authorize_aws(args...)
-    mydateformat = Dates.dateformat"yyyymmdd\THHMMSS\Z"
-    # we define a function in a macro, so that we can use @get_jwt macro (which needs the location)
-    # as well as use `renew`` argument, which requires a function
-    @gensym _authorize_aws
-    esc(quote
-        function $_authorize_aws(role_arn; audience="", role_session::Union{AbstractString,Nothing}=nothing)
-            if isnothing(role_session)
-                role_session = $AWS._role_session_name(
-                    "jolincloud-role-",
-                    basename(role_arn),
-                    "-" * $Dates.format($Dates.now($Dates.UTC), $mydateformat),
-                )
-            end
-            # we need to be cautious that @get_jwt is called with the same __source__
-            web_identity = $(Expr(:macrocall, var"@get_jwt", __source__, :audience))
-
-            response = $AWS.AWSServices.sts(
-                "AssumeRoleWithWebIdentity",
-                Dict(
-                    "RoleArn" => role_arn,
-                    "RoleSessionName" => role_session,  # Required by AssumeRoleWithWebIdentity
-                    "WebIdentityToken" => web_identity,
-                );
-                aws_config=$AWS.AWSConfig(; creds=nothing),
-                feature_set=$AWS.FeatureSet(; use_response_type=true),
-            )
-            dict = parse(response)
-            role_creds = dict["AssumeRoleWithWebIdentityResult"]["Credentials"]
-            assumed_role_user = dict["AssumeRoleWithWebIdentityResult"]["AssumedRoleUser"]
-
-            return $AWS.global_aws_config(creds=$AWS.AWSCredentials(
-                role_creds["AccessKeyId"],
-                role_creds["SecretAccessKey"],
-                role_creds["SessionToken"],
-                assumed_role_user["Arn"];
-                expiry=$Dates.DateTime(rstrip(role_creds["Expiration"], 'Z')),
-                renew=() -> $_authorize_aws(role_arn; audience, role_session).credentials,
-            ))
-        end
-        $(Expr(:call, _authorize_aws, args...))
-    end)
-end
-
+macro authorize_aws end
 
 """
     authorize_aws(role_arn; audience="")
@@ -159,45 +116,6 @@ https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-con
 
 CAUTION: Please note that the semicolon is really important! `@authorize_aws(role_arn, audience="myaudience")` won't work as of now.
 """
-function authorize_aws(args...)
-    mydateformat = Dates.dateformat"yyyymmdd\THHMMSS\Z"
-    # we define a function in a macro, so that we can use @get_jwt macro (which needs the location)
-    # as well as use `renew`` argument, which requires a function
-    function _authorize_aws(role_arn; audience="", role_session::Union{AbstractString,Nothing}=nothing)
-        if isnothing(role_session)
-            role_session = AWS._role_session_name(
-                "jolincloud-role-",
-                basename(role_arn),
-                "-" * Dates.format(Dates.now(Dates.UTC), mydateformat),
-            )
-        end
-        # we need to be cautious that @get_jwt is called with the same __source__
-        web_identity = get_jwt(audience)
-
-        response = AWS.AWSServices.sts(
-            "AssumeRoleWithWebIdentity",
-            Dict(
-                "RoleArn" => role_arn,
-                "RoleSessionName" => role_session,  # Required by AssumeRoleWithWebIdentity
-                "WebIdentityToken" => web_identity,
-            );
-            aws_config=AWS.AWSConfig(; creds=nothing),
-            feature_set=AWS.FeatureSet(; use_response_type=true),
-        )
-        dict = parse(response)
-        role_creds = dict["AssumeRoleWithWebIdentityResult"]["Credentials"]
-        assumed_role_user = dict["AssumeRoleWithWebIdentityResult"]["AssumedRoleUser"]
-
-        return AWS.global_aws_config(creds=AWS.AWSCredentials(
-            role_creds["AccessKeyId"],
-            role_creds["SecretAccessKey"],
-            role_creds["SessionToken"],
-            assumed_role_user["Arn"];
-            expiry=Dates.DateTime(rstrip(role_creds["Expiration"], 'Z')),
-            renew=() -> _authorize_aws(role_arn; audience, role_session).credentials,
-        ))
-    end
-    _authorize_aws(args...)
-end
+function authorize_aws end
 
 # TODO add Azure, Google Cloud and HashiCorp

@@ -10,12 +10,8 @@ export output_below, clipboard_image_to_clipboard_html, embedLargeHTML
 export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
 export cell_ids_create_wrapper, cell_ids_push!, cell_ids_push
 
-using Dates
-using HTTP, JSON3, Git, JWTs, UUIDs, Base64
-# TODO conditional dependency?
-using AWS
-using HypertextLiteral
-using Continuables
+using Dates, HTTP, JSON3, Git, JWTs, UUIDs, Base64
+using HypertextLiteral, Continuables
 import AbstractPlutoDingetjes
 
 include("plutohooks_basics.jl")
