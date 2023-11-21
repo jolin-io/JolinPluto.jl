@@ -1,6 +1,16 @@
 module PlotsExt
 import JolinPluto, Plots
 
+#=
+julia -e 'if isfile(joinpath(ARGS[1], "CondaPkg.toml"))
+import Pkg
+Pkg.add("CondaPkg")
+import CondaPkg  # needed for JolinPlutoCICD.resolve_condapkg
+import JolinPlutoCICD
+JolinPlutoCICD.resolve_condapkg(ARGS[1])
+end' "$GITHUB_WORKSPACE/$notebook_env"
+=#
+
 # little helper to support plotly responsiveness
 # see this issue for updates https://github.com/JuliaPlots/Plots.jl/issues/4775
 function JolinPluto.plotly_responsive(plt=Plots.current())
