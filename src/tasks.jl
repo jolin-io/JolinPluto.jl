@@ -484,11 +484,11 @@ const NoPut = NoPutType()
 Creates a ChannelPluto which calls `get_next_value` repeatedly, interleaved by calls to
 sleep of the given time (defaults to 0 seconds sleep).
 """
-function ChannelWithRepeatedFill(get_next_value, args...; sleep_seconds=0.0, stop_value=NoPut, kwargs...)
+function ChannelWithRepeatedFill(get_next_value, args...; sleep_seconds=0.0, skip_value=NoPut, kwargs...)
 	ChannelPluto(args...; kwargs...) do ch
 		while true
 			value = get_next_value()
-			value != stop_value && put!(ch, value)
+			value != skip_value && put!(ch, value)
 			sleep(sleep_seconds)
 		end
 	end
