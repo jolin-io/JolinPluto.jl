@@ -20,7 +20,7 @@ function JolinPluto.start_python_thread(func)
     if !JolinPluto.is_running_in_pluto_process()
         # just start a plain thread without cleanup
         stop_event = threading.Event()
-        threading.Thread(target=func, args=(stop_event,)).start()
+        threading.Thread(target=func, daemon=true, args=(stop_event,)).start()
         return stop_event
     end
 
