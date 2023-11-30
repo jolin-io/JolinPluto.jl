@@ -22,7 +22,7 @@ macro authorize_aws(args...)
                 )
             end
             # we need to be cautious that @get_jwt is called with the same __source__
-            web_identity = $(Expr(:macrocall, var"@get_jwt", __source__, :audience))
+            web_identity = $(Expr(:macrocall, JolinPluto.var"@get_jwt", __source__, :audience))
 
             response = $AWS.AWSServices.sts(
                 "AssumeRoleWithWebIdentity",
