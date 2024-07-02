@@ -53,4 +53,45 @@ function JolinPluto.start_python_thread(func)
         JolinPluto.pluto_cell_cache[cell_id](func)
     end
 end
+
+
+global pyglobals::Py
+
+"""
+    bindpy("xyz", jl.Slider([1,2,3]))
+
+Bind a UserInput to a variable from Python. Note that the first argument cannot
+be a variable, but necessarily needs to be a constant string.
+"""
+function JolinPluto.bindpy(name, ui)
+    if !isdefined(Main, :PlutoRunner)
+        initial_value_getter = try
+            Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value
+        catch
+            b -> missing
+        end
+        initial_value = Core.applicable(Base.get, ui) ? Base.get(ui) : initial_value_getter(ui)
+        pyglobals[name] = initial_value
+        return ui
+    else
+        def = PythonCall.pyconvert(Symbol, name)
+        initial_value = Core.applicable(Base.get, ui) ? Base.get(ui) : Main.PlutoRunner.initial_value_getter_ref[](ui)
+        pyglobals[name] = initial_value
+        # setglobal!(Main, def, initial_value)
+        return PlutoRunner.create_bond(ui, def, Main.PlutoRunner.currently_running_cell_id[])
+    end
+end
+
+function __init__()
+    global pyglobals = get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main)
+
+    # backwards compatibility?
+    # TODO delete this? it is really unpythonic
+
+    # pyglobals["format_html"] = format_html
+    # pyglobals["MD"] = JolinPluto.MD
+    # pyglobals["HTML"] = HTML
+    # pyglobals["bind"] = JolinPluto.bindpy
+end
+
 end
