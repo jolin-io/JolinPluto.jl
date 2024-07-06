@@ -1,46 +1,5 @@
 # common things for both R and Python
 
-# We build an individual CommonMark parser with a special inline `<> ... </>` component.
-import CommonMark
-
-struct HtmlFragmentInlineRule end
-struct HtmlFragmentInline <: CommonMark.AbstractInline end
-function parse_html_fragment(parser::CommonMark.InlineParser, block::CommonMark.Node)
-    m = CommonMark.consume(parser, match(r"<>.*</>", parser))
-    m === nothing && return false
-    node = CommonMark.Node(HtmlFragmentInline())
-    node.literal = @views m.match[begin+length("<>"):end-length("</>")]
-    CommonMark.append_child(block, node)
-    return true
-end
-CommonMark.inline_rule(::HtmlFragmentInlineRule) = CommonMark.Rule(parse_html_fragment, 1.5, "<")
-
-function CommonMark.write_term(::HtmlFragmentInline, render, node, enter)
-    # macroexpand solves this problem https://discourse.julialang.org/t/how-to-properly-import-a-macro-inside-a-begin-end-block/106037/4
-    style = @macroexpand CommonMark.crayon"dark_gray"
-    CommonMark.print_literal(render, style)
-    CommonMark.push_inline!(render, style)
-    CommonMark.print_literal(render, node.literal)
-    CommonMark.pop_inline!(render)
-    CommonMark.print_literal(render, inv(style))
-end
-CommonMark.write_html(::HtmlFragmentInline, r, n, ent) = CommonMark.literal(r, r.format.safe ? "<!-- raw HTML omitted -->" : n.literal)
-CommonMark.write_latex(::HtmlFragmentInline, w, node, ent) = nothing
-CommonMark.write_markdown(::HtmlFragmentInline, w, node, ent) = CommonMark.literal(w, node.literal)
-
-const _MD_parser = CommonMark.Parser()
-CommonMark.enable!(_MD_parser, CommonMark.DollarMathRule())
-CommonMark.enable!(_MD_parser, CommonMark.TableRule())
-CommonMark.enable!(_MD_parser, HtmlFragmentInlineRule())
-
-"""
-    MD("# Markdown String")
-"""
-function MD(args...; kwargs...)
-    _MD_parser(args...; kwargs...)
-end
-
-
 # it turns out using a function variant of `bind` does not work well with using Pluto as a plain Julia file.
 # because it might be in a nested module somewhere... and julia functions do not have access to its calling module because of possible inlining
 # hence we need at least one macro call to get the module information

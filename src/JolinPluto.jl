@@ -9,7 +9,7 @@ export @output_below, @clipboard_image_to_clipboard_html
 export output_below, clipboard_image_to_clipboard_html, embedLargeHTML, plotly_responsive
 export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
 export cell_ids_create_wrapper, cell_ids_push!, cell_ids_push
-export MD
+export MD, format_html
 export bindr, bindpy, bindjl
 export init_jolin
 
