@@ -58,7 +58,7 @@ end
 
 const _python_module_where_plutoscript_is_included = Ref{PyDict}()
 
-JolinPluto.init_jolin(python_globals::Py) = JolinPluto.init_jolin(PyDict(python_globals))
+JolinPluto.init_jolin(python_globals::Py) = JolinPluto.init_jolin(pyconvert(PyDict, python_globals))
 function JolinPluto.init_jolin(python_globals::PyDict)
     _python_module_where_plutoscript_is_included[] = python_globals
     nothing
@@ -72,7 +72,7 @@ end
 function __init__()
     # this is not calling jolin_init, as jolin_init may extend to do further things next to initializing the module
     # e.g. in PlutoR it will also set variables
-    _python_module_where_plutoscript_is_included[] = PyDict(get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main))
+    _python_module_where_plutoscript_is_included[] = pyconvert(PyDict, get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main))
 end
 
 # """
