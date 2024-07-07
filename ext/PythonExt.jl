@@ -61,6 +61,7 @@ const _python_module_where_plutoscript_is_included = Ref{PyDict}()
 JolinPluto.init_jolin(python_globals::Py) = JolinPluto.init_jolin(PyDict(python_globals))
 function JolinPluto.init_jolin(python_globals::PyDict)
     _python_module_where_plutoscript_is_included[] = python_globals
+    nothing
 end
 
 JolinPluto.lang_enabled(::Val{:py}) = true

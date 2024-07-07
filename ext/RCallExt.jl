@@ -35,6 +35,7 @@ function JolinPluto.init_jolin(r_environment::RCall.RObject{RCall.EnvSxp})
 
 	r_environment[Symbol(".bind")] = JolinPluto.bind
 	RCall.reval("bind <- function(var, ui) .bind(sys.call()[[2]], ui)", r_environment)
+	nothing
 end
 
 JolinPluto.lang_enabled(::Val{:r}) = true
