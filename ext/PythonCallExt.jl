@@ -1,4 +1,4 @@
-module PythonExt
+module PythonCallExt
 
 import JolinPluto
 using PythonCall
