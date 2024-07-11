@@ -59,7 +59,7 @@ pyglobals() = get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main)
 
 JolinPluto.lang_enabled(::Val{:py}) = true
 function JolinPluto.lang_copy_bind(::Val{:py}, def, value)
-    pyglobals()[][string(def)] = value
+    pyglobals()[string(def)] = value
 end
 
 end
