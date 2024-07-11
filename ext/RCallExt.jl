@@ -1,4 +1,5 @@
 module RCallExt
+import CondaPkg  # only needed for initialization
 import RCall, JolinPluto
 
 function JolinPluto.ChannelWithRepeatedFill(get_next_value::RCall.RObject, args...; sleep_seconds=0.0, skip_value=JolinPluto.NoPut, kwargs...)
@@ -45,6 +46,12 @@ end
 
 
 function __init__()
+
+	# this is crucial so that the path is set correctly
+    # while PythonCall does this by itself, RCall needs this manual help, 
+    # which effects both plain Julia with RCall as well as PlutoR
+    CondaPkg.activate!(ENV)
+
 	_r_module_where_plutoscript_is_included[] = RCall.Const.GlobalEnv
 end
 

@@ -1,7 +1,7 @@
 name = "JolinPluto"
 uuid = "5b0b4ef8-f4e6-4363-b674-3f031f7b9530"
 authors = ["Stephan Sahm <stephan.sahm@jolin.io> and contributors"]
-version = "0.1.72"
+version = "0.1.73"
 
 [deps]
 AbstractPlutoDingetjes = "6e696c72-6542-2067-7265-42206c756150"
@@ -28,7 +28,7 @@ CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 AWSExt = "AWS"
 PlotsExt = "Plots"
 PythonCallExt = "PythonCall"
-RCallExt = "RCall"
+RCallExt = ["RCall", "CondaPkg"]
 CondaPkgExt = "CondaPkg"
 
 [compat]
