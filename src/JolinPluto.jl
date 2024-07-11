@@ -10,7 +10,7 @@ export output_below, clipboard_image_to_clipboard_html, embedLargeHTML, plotly_r
 export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
 export cell_ids_create_wrapper, cell_ids_push!, cell_ids_push
 export MD, format_html
-export bindr, bindpy, bindjl
+export bond
 export init_jolin
 
 using Dates, HTTP, JSON3, Git, JWTs, UUIDs, Base64

@@ -75,29 +75,4 @@ end
 #     _python_module_where_plutoscript_is_included[] = get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main)
 # end
 
-# """
-#     bindpy("xyz", jl.Slider([1,2,3]))
-
-# Bind a UserInput to a variable from Python. Note that the first argument cannot
-# be a variable, but necessarily needs to be a constant string.
-# """
-# function JolinPluto.bindpy(name, ui)
-#     if !isdefined(Main, :PlutoRunner)
-#         initial_value_getter = try
-#             Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value
-#         catch
-#             b -> missing
-#         end
-#         initial_value = Core.applicable(Base.get, ui) ? Base.get(ui) : initial_value_getter(ui)
-#         pyglobals[name] = initial_value
-#         return ui
-#     else
-#         def = PythonCall.pyconvert(Symbol, name)
-#         initial_value = Core.applicable(Base.get, ui) ? Base.get(ui) : Main.PlutoRunner.initial_value_getter_ref[](ui)
-#         pyglobals[name] = initial_value
-#         # setglobal!(Main, def, initial_value)
-#         return PlutoRunner.create_bond(ui, def, Main.PlutoRunner.currently_running_cell_id[])
-#     end
-# end
-
 end

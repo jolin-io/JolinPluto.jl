@@ -34,8 +34,8 @@ function JolinPluto.init_jolin(r_environment::RCall.RObject{RCall.EnvSxp})
 	r_environment[:MD] = JolinPluto.MD
 	r_environment[:HTML] = _HTML
 
-	r_environment[Symbol(".bind")] = JolinPluto.bind
-	RCall.reval("bind <- function(var, ui) .bind(sys.call()[[2]], ui)", r_environment)
+	r_environment[Symbol(".bond")] = JolinPluto.bond
+	RCall.reval("bond <- function(var, ui) .bond(sys.call()[[2]], ui)", r_environment)
 	nothing
 end
 
