@@ -5,5 +5,6 @@ function __init__()
     # while PythonCall does this by itself, RCall needs this manual help, 
     # which effects both plain Julia with RCall as well as PlutoR
     CondaPkg.activate!(ENV)
+    @info "activated CondaPkg environment" 
 end
 end
