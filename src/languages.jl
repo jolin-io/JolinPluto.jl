@@ -17,8 +17,8 @@ lang_enabled(lang) = false
 function lang_copy_bind end
 
 function copy_bind_to_registered_languages(def::Symbol, value)
-    lang_enabled(Val{:py}()) && lang_copy_bind(Val{:py}, def, value)
-    lang_enabled(Val{:r}()) && lang_copy_bind(Val{:r}, def, value) 
+    lang_enabled(Val{:py}()) && lang_copy_bind(Val{:py}(), def, value)
+    lang_enabled(Val{:r}()) && lang_copy_bind(Val{:r}(), def, value) 
 end
 
 """
