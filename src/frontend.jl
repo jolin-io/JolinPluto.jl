@@ -182,7 +182,7 @@ Note, this is a single line representation so that it can also be used inside Ma
 function format_html(ans)
     isdefined(Main, :PlutoRunner) || return repr("text/html", ans)
 
-    str, mime = Main.PlutoRunner.format_output(ans; context=PlutoRunner.IOContext(
+    str, mime = Main.PlutoRunner.format_output(ans; context=Main.PlutoRunner.IOContext(
         Main.PlutoRunner.default_iocontext,
         :extra_items=>Dict{Main.PlutoRunner.ObjectDimPair,Int64}(),
         :module => Main.PlutoRunner.currently_running_module[],
