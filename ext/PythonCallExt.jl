@@ -55,7 +55,7 @@ function JolinPluto.start_python_thread(func)
 end
 
 
-pyglobals() = get!(PythonCall.pydict, PythonCall.MODULE_GLOBALS, Main)
+pyglobals() = get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main)
 
 JolinPluto.lang_enabled(::Val{:py}) = true
 function JolinPluto.lang_copy_bind(::Val{:py}, def, value)

@@ -1,18 +1,5 @@
 # common things for both R and Python
 
-# it turns out using a function variant of `bind` does not work well with using Pluto as a plain Julia file.
-# because it might be in a nested module somewhere... and julia functions do not have access to its calling module because of possible inlining
-# hence we need at least one macro call to get the module information
-const _julia_module_where_plutoscript_is_included = Ref{Module}(Main)
-macro init_jolin()
-    _julia_module_where_plutoscript_is_included[] = __module__
-    nothing
-end
-
-function init_jolin end
-
-
-const _lang_bind_copy_functions = Function[]
 lang_enabled(lang) = false
 function lang_copy_bind end
 
