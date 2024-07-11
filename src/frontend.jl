@@ -172,6 +172,14 @@ function MD(args...; kwargs...)
 end
 
 
+# RCall's calling syntax does not support arbitrary types, but is good with functions
+"""
+	HTML("<h1> HTML String </h1>")
+"""
+function _HTML(args...; kwargs...)
+	HTML(args...; kwargs...)
+end
+
 """
     format_html(anything)
 

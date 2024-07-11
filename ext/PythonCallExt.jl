@@ -55,24 +55,11 @@ function JolinPluto.start_python_thread(func)
 end
 
 
-
-const _python_module_where_plutoscript_is_included = Ref{Py}()
-
-JolinPluto.init_jolin(python_globals::PyDict) = JolinPluto.init_jolin(Py(python_globals))
-function JolinPluto.init_jolin(python_globals::Py)
-    _python_module_where_plutoscript_is_included[] = python_globals
-    nothing
-end
+pyglobals() = get!(PythonCall.pydict, PythonCall.MODULE_GLOBALS, Main)
 
 JolinPluto.lang_enabled(::Val{:py}) = true
 function JolinPluto.lang_copy_bind(::Val{:py}, def, value)
-    _python_module_where_plutoscript_is_included[][String(def)] = value
+    pyglobals()[][string(def)] = value
 end
-
-# function __init__()
-#     # this is not calling jolin_init, as jolin_init may extend to do further things next to initializing the module
-#     # e.g. in PlutoR it will also set variables
-#     _python_module_where_plutoscript_is_included[] = get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main)
-# end
 
 end

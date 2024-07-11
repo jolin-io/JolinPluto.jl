@@ -13,47 +13,18 @@ function JolinPluto.ChannelWithRepeatedFill(get_next_value::RCall.RObject, args.
 	end
 end
 
-
-# RCall's calling syntax does not support arbitrary types, but is good with functions
-"""
-	HTML("<h1> HTML String </h1>")
-"""
-function _HTML(args...; kwargs...)
-	HTML(args...; kwargs...)
-end
-
-const _r_module_where_plutoscript_is_included = Ref{RCall.RObject{RCall.EnvSxp}}()
-
-function JolinPluto.init_jolin(r_environment::RCall.RObject{RCall.EnvSxp})
-    _r_module_where_plutoscript_is_included[] = r_environment
-
-	r_environment[:format_html] = JolinPluto.format_html
-	# Markdown and HTML support should be there out of the box
-	# CommonMark is used, because the standard Markdown does not support html strings inside markdown string.
-	# (within Julia itself the object interpolation works, because everything is stored as julia objects and only finally transformed to html.)
-	r_environment[:MD] = JolinPluto.MD
-	r_environment[:HTML] = _HTML
-
-	r_environment[Symbol(".bond")] = JolinPluto.bond
-	RCall.reval("bond <- function(var, ui) .bond(sys.call()[[2]], ui)", r_environment)
-	nothing
-end
+# c(MD, HTML, format_html, viewof) %<-% julia_eval("Jolin.MD, Jolin._HTML, Jolin.format_html, Jolin.viewof")
 
 JolinPluto.lang_enabled(::Val{:r}) = true
-function JolinPluto.lang_copy_bind(::Val{:r}, def, value)
+function JolinPluto.lang_copy_bind(::Val{:r}, def::Symbol, value)
 	RCall.Const.GlobalEnv[def] = value
 end
 
-
 function __init__()
-
 	# this is crucial so that the path is set correctly
     # while PythonCall does this by itself, RCall needs this manual help, 
     # which effects both plain Julia with RCall as well as PlutoR
     CondaPkg.activate!(ENV)
-
-	_r_module_where_plutoscript_is_included[] = RCall.Const.GlobalEnv
 end
-
 
 end # module
