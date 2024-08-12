@@ -61,7 +61,7 @@ macro get(setter)
 	quote
 		setter = getsetter($setter)
 		if $firsttime[] || setter.just_created
-			rerun = @give_me_rerun_cell_function
+			rerun = $(Main.PlutoRunner.GiveMeRerunCellFunction())
 			if setter.rerun !== nothing
 				@error "`@get` was already called on the setter. Only use one invocation of `@get` per setter."
 			end
@@ -69,7 +69,7 @@ macro get(setter)
 
             if $firsttime[]
                 $firsttime[] = false
-                cleanup = @give_me_register_cleanup_function
+                cleanup = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
                 cleanup() do
                     if setter.rerun === rerun
                         setter.rerun = nothing
@@ -84,7 +84,7 @@ end
 
 
 function Base.get(setter::Setter)
-	is_running_in_pluto_process() || return setter.value
+	is_running_in_jolinpluto_process() || return setter.value
 	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
 
 	if firsttime || setter.just_created
@@ -168,11 +168,11 @@ macro cell_ids_push!(setter)
 	is_running_in_pluto_process() || return QuoteNode(nothing)
 	quote
 		setter = getsetter($setter)
-		cell_id = @give_me_the_pluto_cell_id
+		cell_id = $(Main.PlutoRunner.GiveMeCellID())
 		setter() do cell_ids
 			push!(cell_ids, cell_id)
 		end
-		cleanup = @give_me_register_cleanup_function
+		cleanup = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
 		cleanup() do
 			setter() do cell_ids
 				delete!(cell_ids, cell_id)
@@ -193,7 +193,7 @@ Also cleanup is handled, i.e. that the cell-id is removed again if this cell is 
 """
 function cell_ids_push!(setter::Setter)
 	# if this is not run inside Pluto, we just don't add a cell_id
-	is_running_in_pluto_process() || return nothing
+	is_running_in_jolinpluto_process() || return nothing
 
 	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
 	cell_id = Main.PlutoRunner.currently_running_cell_id[]
@@ -212,4 +212,5 @@ function cell_ids_push!(setter::Setter)
 	nothing
 end
 
+# useful for use in Python and R, where exclamation mark is not a valid symbol
 const cell_ids_push = cell_ids_push!

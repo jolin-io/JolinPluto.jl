@@ -112,8 +112,8 @@ macro repeat_run(init, repeatme=init)
 	firsttime = Ref(true)
 	:(let
 		if $firsttime[]
-			$rerun[] = $JolinPluto.@give_me_rerun_cell_function
-			register_cleanup_fn = $JolinPluto.@give_me_register_cleanup_function()
+			$rerun[] = $(Main.PlutoRunner.GiveMeRerunCellFunction())
+			register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
 		end
@@ -158,7 +158,7 @@ also be triggered if the cell is re-evaluated because some dependent cell or bon
 changed.
 """
 function repeat_run(init, repeatme=init)
-	is_running_in_pluto_process() || return init()
+	is_running_in_jolinpluto_process() || return init()
 	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
 	cell_id = Main.PlutoRunner.currently_running_cell_id[]
 
@@ -427,7 +427,7 @@ macro Channel(args...)
 		chnl = Channel($(map(esc, args)...); taskref=$task)
 
 		if $firsttime[]
-			register_cleanup_fn = $JolinPluto.@give_me_register_cleanup_function()
+			register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
 		end
@@ -448,7 +448,7 @@ Like normal `Channel`, with the underlying task being interrupted
 as soon as the Pluto cell is deleted.
 """
 function ChannelPluto(args...; kwargs...)
-    is_running_in_pluto_process() || return Channel(args...; kwargs...) # just create a plain channel without cleanup
+    is_running_in_jolinpluto_process() || return Channel(args...; kwargs...) # just create a plain channel without cleanup
 	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
 	cell_id = Main.PlutoRunner.currently_running_cell_id[]
 

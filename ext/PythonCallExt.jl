@@ -17,7 +17,7 @@ end
 function JolinPluto.start_python_thread(func)
     threading = @pyconst(pyimport("threading"))
 
-    if !JolinPluto.is_running_in_pluto_process()
+    if !JolinPluto.is_running_in_jolinpluto_process()
         # just start a plain thread without cleanup
         stop_event = threading.Event()
         threading.Thread(target=func, daemon=true, args=(stop_event,)).start()
@@ -58,8 +58,12 @@ end
 pyglobals() = get!(PythonCall.pydict, PythonCall.Core.MODULE_GLOBALS, Main)
 
 JolinPluto.lang_enabled(::Val{:py}) = true
-function JolinPluto.lang_copy_bind(::Val{:py}, def, value)
+function JolinPluto.lang_set_global(::Val{:py}, def, value)
     pyglobals()[string(def)] = value
 end
+function JolinPluto.lang_get_global(::Val{:py}, def)
+    pyglobals()[string(def)]
+end
+
 
 end

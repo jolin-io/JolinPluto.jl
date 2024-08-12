@@ -16,8 +16,11 @@ end
 # c(MD, HTML, format_html, viewof) %<-% julia_eval("Jolin.MD, Jolin._HTML, Jolin.format_html, Jolin.viewof")
 
 JolinPluto.lang_enabled(::Val{:r}) = true
-function JolinPluto.lang_copy_bind(::Val{:r}, def::Symbol, value)
+function JolinPluto.lang_set_global(::Val{:r}, def::Symbol, value)
 	RCall.Const.GlobalEnv[def] = value
+end
+function JolinPluto.lang_get_global(::Val{:r}, def::Symbol)
+	RCall.Const.GlobalEnv[def]
 end
 
 function __init__()

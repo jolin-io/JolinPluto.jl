@@ -1,15 +1,5 @@
 using EzXML
-
-"""
-    @output_below
-
-Reverse input output, first input then output. When removing the cell with
-`@output_below`, the order is reversed again.
-"""
-macro output_below()
-    result = output_below()
-    QuoteNode(result)
-end
+import AbstractPlutoDingetjes
 
 """
     output_below()
@@ -44,16 +34,6 @@ output_below() = @htl """
     </script>
     """
 
-"""
-   @clipboard_image_to_clipboard_html
-
-Creates a little textfield where you can paste images. These images are then transformed
-to self-containing html img tags and copied back to the clipboard to be entered
-somewhere in Pluto.
-"""
-macro clipboard_image_to_clipboard_html()
-	QuoteNode(clipboard_image_to_clipboard_html())
-end
 
 """
    clipboard_image_to_clipboard_html()
@@ -117,20 +97,6 @@ function embedLargeHTML(rawpagedata; kwargs...)
 end
 
 
-"""
-    plotly_responsive()
-    plotly_responsive(plot_object)
-
-IMPORTANT: Works only if `plotly()` backend is activated
-
-Makes the plotly plot responsive and returns the new plot.
-"""
-function plotly_responsive end  # See this issue for updates https://github.com/JuliaPlots/Plots.jl/issues/4775
-
-
-
-
-
 # We build an individual CommonMark parser with a special inline `<> ... </>` component.
 import CommonMark
 
@@ -166,6 +132,9 @@ CommonMark.enable!(_MD_parser, HtmlFragmentInlineRule())
 
 """
     MD("# Markdown String")
+
+Markdown parser with special support for inline html fenced by `<>...</>`.
+As `format_html` returns single line html, this makes it possible to interpolate arbitrary html into markdown tables.
 """
 function MD(args...; kwargs...)
     _MD_parser(args...; kwargs...)
@@ -174,7 +143,11 @@ end
 
 # RCall's calling syntax does not support arbitrary types, but is good with functions
 """
-	HTML("<h1> HTML String </h1>")
+	_HTML("<h1> HTML String </h1>")
+
+Just like HTML, but a function. 
+
+Background: RCall's calling syntax does not support arbitrary types, but is good with functions.
 """
 function _HTML(args...; kwargs...)
 	HTML(args...; kwargs...)
