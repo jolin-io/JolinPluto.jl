@@ -69,7 +69,7 @@ macro get(setter)
 
             if $firsttime[]
                 $firsttime[] = false
-                cleanup = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
+                cleanup = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
                 cleanup() do
                     if setter.rerun === rerun
                         setter.rerun = nothing
@@ -172,7 +172,7 @@ macro cell_ids_push!(setter)
 		setter() do cell_ids
 			push!(cell_ids, cell_id)
 		end
-		cleanup = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
+		cleanup = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
 		cleanup() do
 			setter() do cell_ids
 				delete!(cell_ids, cell_id)

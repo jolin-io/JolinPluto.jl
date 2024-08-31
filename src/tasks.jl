@@ -113,7 +113,7 @@ macro repeat_run(init, repeatme=init)
 	:(let
 		if $firsttime[]
 			$rerun[] = $(Main.PlutoRunner.GiveMeRerunCellFunction())
-			register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
+			register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
 		end
@@ -427,7 +427,7 @@ macro Channel(args...)
 		chnl = Channel($(map(esc, args)...); taskref=$task)
 
 		if $firsttime[]
-			register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction)
+			register_cleanup_fn = $(Main.PlutoRunner.GiveMeRegisterCleanupFunction())
 			register_cleanup_fn($(create_taskref_cleanup(task)))
 			$firsttime[] = false
 		end
