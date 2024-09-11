@@ -130,7 +130,7 @@ function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
         div.value = $(pyconvert(Any, w.widget.value))
 
         if((window.require == null) || window.specified){
-			div.innerHTML = '<p>Couldn't find ipywidgets javascript dependencies. This should not happen, please contact <a href="mailto:hello@jolin.io">hello@jolin.io</a>. </p>'
+			div.innerHTML = '<p>Could not find ipywidgets javascript dependencies. This should not happen, please contact <a href="mailto:hello@jolin.io">hello@jolin.io</a>. </p>'
 		}
         
         // TODO renderWidgets(div) has the advantage that no duplicates appear
