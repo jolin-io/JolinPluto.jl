@@ -2,6 +2,8 @@ module PythonCallExt
 
 import JolinPluto
 using PythonCall
+using HypertextLiteral
+import AbstractPlutoDingetjes
 
 function JolinPluto.repeat_queueget(q)
     function _repeat_queueget()
