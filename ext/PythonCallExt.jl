@@ -110,12 +110,6 @@ JolinPluto.IPyWidget_init() = @htl """
 </script>
 """
 
-# Defined in JolinPluto
-# """ Wrap an ipywidget to be used in Pluto """
-# struct IPyWidget
-#     wi
-# end
-
 function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
     e = PythonCall.pyimport("ipywidgets.embed")
     data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
@@ -129,15 +123,22 @@ function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
         // this value property will be read out for the client-site initial value
         div.value = $(pyconvert(Any, w.wi.value))
 
+        if((window.require == null) || window.specified){
+			div.innerHTML = '<p>⚠️ Activate ipywidgets by running the following once inside Pluto ⚠️ <pre><code>from juliacall import Main as jl<br/>jl.seval("using Jolin")<br/>jl.IPyWidget_init() # <-- this is important</code></pre> </p>'
+		}
+        
         // TODO renderWidgets(div) has the advantage that no duplicates appear
         // however if the same ui is used multiple times on the website, they also won't be combined any longer into one synced state (which actually happens automatically without the div restriction)
         // still for now having no duplicates (why ever they appear without the div restriction) is better than no sync
-        window.require(["@jupyter-widgets/html-manager/dist/libembed-amd"], (function(e) {
-            // without this the second execution wouldn't show anything 
-            "complete" === document.readyState ? e.renderWidgets(div) : window.addEventListener("load", (function() {
-                e.renderWidgets(div)
-            }))
-        }))
+        window.require?.(["@jupyter-widgets/html-manager/dist/libembed-amd"],
+            (function(e) {
+                // without this the second execution wouldn't show anything 
+                "complete" === document.readyState ? e.renderWidgets(div) : window.addEventListener("load", (function() {
+                    e.renderWidgets(div)
+                }))
+            })
+        )
+		
     })();
     </script>
     
@@ -198,5 +199,76 @@ function __init__()
         PythonCall.Convert.pyconvert_add_rule("plotly.graph_objs._figure:Figure", PythonCall.Py, PythonCall.Convert.pyconvert_rule_object, PythonCall.Convert.PYCONVERT_PRIORITY_WRAP)
     end
 end
+
+# Here an alternative implementation which unfortunately does not really work because if the same is used multiple times, on the first load it will actually 
+# interfere with one another so that all widgets are duplicated 3 to 10 times, depending on how many widgets load the common dependency in parallel.
+# function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
+#     e = PythonCall.pyimport("ipywidgets.embed")
+#     data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
+#     show(io, m, @htl """
+#     <div type="application/vnd.jupyter.widget-view+div">
+#     <script>
+# 	if (window.ipywidgets_loaded == null){
+# 		window.ipywidgets_loaded = true;
+# 		(()=>{
+# 			var s = document.createElement('script');
+# 			s.src = "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
+# 			// s.integrity = "sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA="
+# 			s.type = "text/javascript"
+# 			s.crossorigin = "anonymous"
+# 			s.async = false // <- this is important
+# 			currentScript.parentNode.insertBefore(s, currentScript.nextSibling)
+
+		
+# 			var s = document.createElement('script')
+# 			s.src = "https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@*/dist/embed-amd.js"
+# 			s["data-jupyter-widgets-cdn"] = "https://unpkg.com/"
+# 			s["data-jupyter-widgets-cdn-only"] = ""
+# 			s.crossorigin = "anonymous"
+# 			s.async = false // <- this is important
+# 			currentScript.parentNode.insertBefore(s, currentScript.nextSibling)
+# 		})();
+# 	}
+#     </script>
+# 	<script>
+# 	(()=>{
+#         "use strict";
+#         const div = currentScript.parentElement;
+#         // this is key so that the initial value won't be set to nothing immediately
+#         // this value property will be read out for the client-site initial value
+#         div.value = $(pyconvert(Any, w.wi.value))
+
+#         // TODO renderWidgets(div) has the advantage that no duplicates appear
+#         // however if the same ui is used multiple times on the website, they also won't be combined any longer into one synced state (which actually happens automatically without the div restriction)
+#         // still for now having no duplicates (why ever they appear without the div restriction) is better than no sync
+#         window.require(["@jupyter-widgets/html-manager/dist/libembed-amd"],
+#             (function(e) {
+#                 // without this the second execution wouldn't show anything 
+#                 "complete" === document.readyState ? e.renderWidgets(div) : window.addEventListener("load", (function() {
+#                     e.renderWidgets(div)
+#                 }))
+#             })
+#         )
+#     })();
+#     </script>
+    
+#     <!-- The state of all the widget models on the page -->
+#     <script type="application/vnd.jupyter.widget-state+json">
+#         $(pyconvert(Dict, data["manager_state"]))
+#     </script>
+#     <!-- This script tag will be replaced by the view's DOM tree -->
+#     <script type="application/vnd.jupyter.widget-view+json">
+#         $(pyconvert(Dict, data["view_specs"][0]))
+#     </script>
+
+#     <script>
+#     invalidation.then(() => {
+#         // cleanup here!
+#     })
+#     </script>
+#     </div>
+#     """)
+# end
+
 
 end
