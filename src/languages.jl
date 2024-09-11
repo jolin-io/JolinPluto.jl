@@ -20,3 +20,18 @@ function lang_set_global end
 Gets the given variable from the respective language side.
 """
 function lang_get_global end
+
+
+
+# Python specific stuff
+
+
+# this is defined here so that it can also be used in standard Pluto and Julia notebooks which may use ipywidgets
+""" 
+    IPyWidget(ipywidget)
+
+Wrap an ipywidget to be used inside Pluto
+"""
+struct IPyWidget
+    widget
+end

@@ -116,14 +116,9 @@ IPyWidget_init() = @htl """
 
 # Python specific stuff
 
-""" Wrap an ipywidget to be used in Pluto """
-struct IPyWidget
-    wi
-end
-
-function Base.show(io::IO, m::MIME"text/html", w::IPyWidget)
+function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
     e = PythonCall.pyimport("ipywidgets.embed")
-    data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
+    data = e.embed_data(views=[w.widget], state=e.dependency_state([w.widget]))
     show(io, m, @htl """
     <div type="application/vnd.jupyter.widget-view+div">
     <script>
@@ -132,7 +127,7 @@ function Base.show(io::IO, m::MIME"text/html", w::IPyWidget)
         const div = currentScript.parentElement;
         // this is key so that the initial value won't be set to nothing immediately
         // this value property will be read out for the client-site initial value
-        div.value = $(pyconvert(Any, w.wi.value))
+        div.value = $(pyconvert(Any, w.widget.value))
 
         if((window.require == null) || window.specified){
 			div.innerHTML = '<p>Couldn't find ipywidgets javascript dependencies. This should not happen, please contact <a href="mailto:hello@jolin.io">hello@jolin.io</a>. </p>'
@@ -171,15 +166,15 @@ function Base.show(io::IO, m::MIME"text/html", w::IPyWidget)
     """)
 end
 
-function AbstractPlutoDingetjes.Bonds.initial_value(w::IPyWidget)
-    return pyconvert(Any, w.wi.value)
+function AbstractPlutoDingetjes.Bonds.initial_value(w::JolinPluto.IPyWidget)
+    return pyconvert(Any, w.widget.value)
 end
 
 function pyshow_rule_ipywidgets(io::IO, mime::String, x::Py)
     mime == "text/html" || return false
     pyissubclass(pytype(x), @pyconst(pyimport("ipywidgets").widgets.ValueWidget)) || return false
     try
-        show(io, mime, IPyWidget(x))
+        show(io, mime, JolinPluto.IPyWidget(x))
         return true
     catch exc
         if exc isa PyException
@@ -194,7 +189,7 @@ end
 JolinPluto.viewof(def::AbstractString, ui::Py) = JolinPluto.viewof(Symbol(def), ui)
 function JolinPluto.viewof(def::Symbol, ui::Py)
     if pyissubclass(pytype(ui), @pyconst(pyimport("ipywidgets").widgets.ValueWidget))
-        JolinPluto.viewof(def, IPyWidget(ui))
+        JolinPluto.viewof(def, JolinPluto.IPyWidget(ui))
     else 
         @invoke JolinPluto.viewof(def::Symbol, ui::Any)
     end
@@ -213,9 +208,9 @@ end
 
 # Here an alternative implementation which unfortunately does not really work because if the same is used multiple times, on the first load it will actually 
 # interfere with one another so that all widgets are duplicated 3 to 10 times, depending on how many widgets load the common dependency in parallel.
-# function Base.show(io::IO, m::MIME"text/html", w::IPyWidget)
+# function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
 #     e = PythonCall.pyimport("ipywidgets.embed")
-#     data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
+#     data = e.embed_data(views=[w.widget], state=e.dependency_state([w.widget]))
 #     show(io, m, @htl """
 #     <div type="application/vnd.jupyter.widget-view+div">
 #     <script>
@@ -247,7 +242,7 @@ end
 #         const div = currentScript.parentElement;
 #         // this is key so that the initial value won't be set to nothing immediately
 #         // this value property will be read out for the client-site initial value
-#         div.value = $(pyconvert(Any, w.wi.value))
+#         div.value = $(pyconvert(Any, w.widget.value))
 
 #         // TODO renderWidgets(div) has the advantage that no duplicates appear
 #         // however if the same ui is used multiple times on the website, they also won't be combined any longer into one synced state (which actually happens automatically without the div restriction)
