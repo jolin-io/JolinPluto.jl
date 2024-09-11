@@ -100,8 +100,8 @@ JolinPluto.IPyWidget_init() = @htl """
 	window.require(["@jupyter-widgets/base"], (function(b) {
 		b.WidgetView.prototype.touch = function(){
 			let div = this.el.closest('div[type="application/vnd.jupyter.widget-view+div"]')
-			if (this.model._buffered_state_diff?.value != null){
-				div.value = this.model._buffered_state_diff.value 
+			if ((div != null) && (this.model._buffered_state_diff?.value != null)){
+				div.value = this.model._buffered_state_diff.value
 				div.dispatchEvent(new CustomEvent('input'))
 			}
 		}
@@ -164,6 +164,7 @@ function AbstractPlutoDingetjes.Bonds.initial_value(w::JolinPluto.IPyWidget)
 end
 
 function pyshow_rule_ipywidgets(io::IO, mime::String, x::Py)
+    mime == "text/html" || return false
     pyissubclass(pytype(x), @pyconst(pyimport("ipywidgets").widgets.ValueWidget)) || return false
     try
         show(io, mime, JolinPluto.IPyWidget(x))
@@ -174,6 +175,16 @@ function pyshow_rule_ipywidgets(io::IO, mime::String, x::Py)
         else
             rethrow()
         end
+    end
+end
+
+# auto convert ipywidgets inside viewof, as the ui element is not shown
+JolinPluto.viewof(def::AbstractString, ui::Py) = JolinPluto.viewof(Symbol(def), ui)
+function JolinPluto.viewof(def::Symbol, ui::Py)
+    if pyissubclass(pytype(ui), @pyconst(pyimport("ipywidgets").widgets.ValueWidget))
+        @invoke JolinPluto.viewof(def::Symbol, IPyWidget(ui)::Any)
+    else 
+        @invoke JolinPluto.viewof(def::Symbol, ui::Any)
     end
 end
 

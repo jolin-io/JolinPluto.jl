@@ -32,7 +32,7 @@ function viewof(def, ui)
         return initial_value, ui
     else
         Main.PlutoRunner.load_integrations_if_needed()
-		initial_value_getter = Main.PlutoRunner.initial_value_getter_ref[](ui)
+		initial_value_getter = Main.PlutoRunner.initial_value_getter_ref[]
         initial_value = Core.applicable(Base.get, ui) ? Base.get(ui) : initial_value_getter(ui)
         return initial_value, Main.PlutoRunner.create_bond(ui, def, Main.PlutoRunner.currently_running_cell_id[])
     end
