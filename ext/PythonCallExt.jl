@@ -182,7 +182,7 @@ end
 JolinPluto.viewof(def::AbstractString, ui::Py) = JolinPluto.viewof(Symbol(def), ui)
 function JolinPluto.viewof(def::Symbol, ui::Py)
     if pyissubclass(pytype(ui), @pyconst(pyimport("ipywidgets").widgets.ValueWidget))
-        @invoke JolinPluto.viewof(def::Symbol, IPyWidget(ui)::Any)
+        JolinPluto.viewof(def, JolinPluto.IPyWidget(ui))
     else 
         @invoke JolinPluto.viewof(def::Symbol, ui::Any)
     end
