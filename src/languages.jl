@@ -20,14 +20,3 @@ function lang_set_global end
 Gets the given variable from the respective language side.
 """
 function lang_get_global end
-
-
-
-# Python specific stuff
-
-function IPyWidget_init end
-
-""" Wrap an ipywidget to be used in Pluto """
-struct IPyWidget
-    wi
-end

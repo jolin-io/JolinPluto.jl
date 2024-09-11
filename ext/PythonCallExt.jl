@@ -72,13 +72,16 @@ end
 # ipywidgets support
 # ==================
 
-# global initialization needed for ipywidgets
+# global initialization needed for ipywidgets - this is now also included in Pluto base, so no need for this here any longer
+# the downside was that on reload, this was not really executed in the correct order.
+# still somewhen it would be nice for a package like this to create a __pluto_init__ hook or similar to ingest this in a more modular way
+
 """
     IPyWidget_init()
 
 Initialize javascript for ipywidgets to work inside Pluto.
 """
-JolinPluto.IPyWidget_init() = @htl """
+IPyWidget_init() = @htl """
 <!-- Load RequireJS, used by the IPywidgets for dependency management -->
 <script
   src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
@@ -94,6 +97,7 @@ JolinPluto.IPyWidget_init() = @htl """
   crossorigin="anonymous">
 </script>
 
+<!-- Patch IPywidgets WidgetView to trigger Pluto events. -->
 <script>
 (()=>{
 	"use strict";
@@ -110,7 +114,14 @@ JolinPluto.IPyWidget_init() = @htl """
 </script>
 """
 
-function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
+# Python specific stuff
+
+""" Wrap an ipywidget to be used in Pluto """
+struct IPyWidget
+    wi
+end
+
+function Base.show(io::IO, m::MIME"text/html", w::IPyWidget)
     e = PythonCall.pyimport("ipywidgets.embed")
     data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
     show(io, m, @htl """
@@ -124,7 +135,7 @@ function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
         div.value = $(pyconvert(Any, w.wi.value))
 
         if((window.require == null) || window.specified){
-			div.innerHTML = '<p>⚠️ Activate ipywidgets by running the following once inside Pluto ⚠️ <pre><code>from juliacall import Main as jl<br/>jl.seval("using Jolin")<br/>jl.IPyWidget_init() # <-- this is important</code></pre> </p>'
+			div.innerHTML = '<p>Couldn't find ipywidgets javascript dependencies. This should not happen, please contact <a href="mailto:hello@jolin.io">hello@jolin.io</a>. </p>'
 		}
         
         // TODO renderWidgets(div) has the advantage that no duplicates appear
@@ -160,7 +171,7 @@ function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
     """)
 end
 
-function AbstractPlutoDingetjes.Bonds.initial_value(w::JolinPluto.IPyWidget)
+function AbstractPlutoDingetjes.Bonds.initial_value(w::IPyWidget)
     return pyconvert(Any, w.wi.value)
 end
 
@@ -168,7 +179,7 @@ function pyshow_rule_ipywidgets(io::IO, mime::String, x::Py)
     mime == "text/html" || return false
     pyissubclass(pytype(x), @pyconst(pyimport("ipywidgets").widgets.ValueWidget)) || return false
     try
-        show(io, mime, JolinPluto.IPyWidget(x))
+        show(io, mime, IPyWidget(x))
         return true
     catch exc
         if exc isa PyException
@@ -183,7 +194,7 @@ end
 JolinPluto.viewof(def::AbstractString, ui::Py) = JolinPluto.viewof(Symbol(def), ui)
 function JolinPluto.viewof(def::Symbol, ui::Py)
     if pyissubclass(pytype(ui), @pyconst(pyimport("ipywidgets").widgets.ValueWidget))
-        JolinPluto.viewof(def, JolinPluto.IPyWidget(ui))
+        JolinPluto.viewof(def, IPyWidget(ui))
     else 
         @invoke JolinPluto.viewof(def::Symbol, ui::Any)
     end
@@ -202,7 +213,7 @@ end
 
 # Here an alternative implementation which unfortunately does not really work because if the same is used multiple times, on the first load it will actually 
 # interfere with one another so that all widgets are duplicated 3 to 10 times, depending on how many widgets load the common dependency in parallel.
-# function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
+# function Base.show(io::IO, m::MIME"text/html", w::IPyWidget)
 #     e = PythonCall.pyimport("ipywidgets.embed")
 #     data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
 #     show(io, m, @htl """
