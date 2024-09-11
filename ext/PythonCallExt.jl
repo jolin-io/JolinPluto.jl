@@ -66,4 +66,124 @@ function JolinPluto.lang_get_global(::Val{:py}, def)
 end
 
 
+
+# ipywidgets support
+# ==================
+
+# global initialization needed for ipywidgets
+"""
+    IPyWidget_init()
+
+Initialize javascript for ipywidgets to work inside Pluto.
+"""
+JolinPluto.IPyWidget_init() = @htl """
+<!-- Load RequireJS, used by the IPywidgets for dependency management -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
+  integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA="
+  crossorigin="anonymous">
+</script>
+
+<!-- Load IPywidgets bundle for embedding. -->
+<script
+  data-jupyter-widgets-cdn="https://unpkg.com/"
+  data-jupyter-widgets-cdn-only
+  src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@*/dist/embed-amd.js"
+  crossorigin="anonymous">
+</script>
+
+<script>
+(()=>{
+	"use strict";
+	window.require(["@jupyter-widgets/base"], (function(b) {
+		b.WidgetView.prototype.touch = function(){
+			let div = this.el.closest('div[type="application/vnd.jupyter.widget-view+div"]')
+			if (this.model._buffered_state_diff?.value != null){
+				div.value = this.model._buffered_state_diff.value 
+				div.dispatchEvent(new CustomEvent('input'))
+			}
+		}
+	}))
+})();
+</script>
+"""
+
+# Defined in JolinPluto
+# """ Wrap an ipywidget to be used in Pluto """
+# struct IPyWidget
+#     wi
+# end
+
+function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
+    e = PythonCall.pyimport("ipywidgets.embed")
+    data = e.embed_data(views=[w.wi], state=e.dependency_state([w.wi]))
+    show(io, m, @htl """
+    <div type="application/vnd.jupyter.widget-view+div">
+    <script>
+    (()=>{
+        "use strict";
+        const div = currentScript.parentElement;
+        // this is key so that the initial value won't be set to nothing immediately
+        // this value property will be read out for the client-site initial value
+        div.value = $(pyconvert(Any, w.wi.value))
+
+        // TODO renderWidgets(div) has the advantage that no duplicates appear
+        // however if the same ui is used multiple times on the website, they also won't be combined any longer into one synced state (which actually happens automatically without the div restriction)
+        // still for now having no duplicates (why ever they appear without the div restriction) is better than no sync
+        window.require(["@jupyter-widgets/html-manager/dist/libembed-amd"], (function(e) {
+            // without this the second execution wouldn't show anything 
+            "complete" === document.readyState ? e.renderWidgets(div) : window.addEventListener("load", (function() {
+                e.renderWidgets(div)
+            }))
+        }))
+    })();
+    </script>
+    
+    <!-- The state of all the widget models on the page -->
+    <script type="application/vnd.jupyter.widget-state+json">
+          $(pyconvert(Dict, data["manager_state"]))
+    </script>
+    <!-- This script tag will be replaced by the view's DOM tree -->
+    <script type="application/vnd.jupyter.widget-view+json">
+        $(pyconvert(Dict, data["view_specs"][0]))
+    </script>
+
+    <script>
+    invalidation.then(() => {
+        // cleanup here!
+    })
+    </script>
+    </div>
+    """)
+end
+
+function AbstractPlutoDingetjes.Bonds.initial_value(w::JolinPluto.IPyWidget)
+    return pyconvert(Any, w.wi.value)
+end
+
+function pyshow_rule_ipywidgets(io::IO, mime::String, x::Py)
+    pyissubclass(pytype(x), @pyconst(pyimport("ipywidgets").widgets.ValueWidget)) || return false
+    try
+        show(io, mime, JolinPluto.IPyWidget(x))
+        return true
+    catch exc
+        if exc isa PyException
+            return false
+        else
+            rethrow()
+        end
+    end
+end
+
+function __init__()
+    # improve support for ipywidgets
+    if isdefined(PythonCall, :Compat)  # older versions of PythonCall don't have the Compat submodule
+        PythonCall.Compat.pyshow_add_rule(pyshow_rule_ipywidgets)
+    end
+    # improve support for plotly figures
+    if isdefined(PythonCall, :Convert)  # older versions of PythonCall don't have the Convert submodule
+        PythonCall.Convert.pyconvert_add_rule("plotly.graph_objs._figure:Figure", PythonCall.Py, PythonCall.Convert.pyconvert_rule_object, PythonCall.Convert.PYCONVERT_PRIORITY_WRAP)
+    end
+end
+
 end
