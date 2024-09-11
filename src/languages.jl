@@ -25,6 +25,7 @@ function lang_get_global end
 
 # Python specific stuff
 
+function IPyWidget_init() end
 
 # this is defined here so that it can also be used in standard Pluto and Julia notebooks which may use ipywidgets
 """ 

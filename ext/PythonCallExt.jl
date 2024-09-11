@@ -72,16 +72,17 @@ end
 # ipywidgets support
 # ==================
 
-# global initialization needed for ipywidgets - this is now also included in Pluto base, so no need for this here any longer
-# the downside was that on reload, this was not really executed in the correct order.
-# still somewhen it would be nice for a package like this to create a __pluto_init__ hook or similar to ingest this in a more modular way
+# Something similar to IPyWidget_init() is now also included in Jolin's Pluto base.
+# (The downside was that on reload, this was not really executed in the correct order.
+# still somewhen it would be nice for a package like this to create a __pluto_init__ hook or similar to ingest this in a more modular way)
+# In anyway, JolinPluto is meant to support standard Pluto too, so it is important for it to be accessible and useful from standard Julia Pluto. 
 
 """
     IPyWidget_init()
 
 Initialize javascript for ipywidgets to work inside Pluto.
 """
-IPyWidget_init() = @htl """
+JolinPluto.IPyWidget_init() = @htl """
 <!-- Load RequireJS, used by the IPywidgets for dependency management -->
 <script
   src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
@@ -130,7 +131,7 @@ function Base.show(io::IO, m::MIME"text/html", w::JolinPluto.IPyWidget)
         div.value = $(pyconvert(Any, w.widget.value))
 
         if((window.require == null) || window.specified){
-			div.innerHTML = '<p>Could not find ipywidgets javascript dependencies. This should not happen, please contact <a href="mailto:hello@jolin.io">hello@jolin.io</a>. </p>'
+			div.innerHTML = '<p>⚠️ Activate ipywidgets by running the following once inside Pluto ⚠️ <pre><code>using Jolin # or using JolinPluto<br/>IPyWidget_init() # <-- this is important</code></pre> </p>'
 		}
         
         // TODO renderWidgets(div) has the advantage that no duplicates appear

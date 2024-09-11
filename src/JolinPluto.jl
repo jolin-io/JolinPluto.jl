@@ -7,7 +7,7 @@ export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
 export cell_ids_create_wrapper, cell_ids_push!, cell_ids_push
 export MD, format_html, _HTML
 export viewof
-export IPyWidget
+export IPyWidget, IPyWidget_init
 
 using Dates, HTTP, JSON3, Git, JWTs, UUIDs, Base64
 using HypertextLiteral, Continuables
