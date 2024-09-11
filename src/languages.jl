@@ -31,7 +31,7 @@ function IPyWidget_init end
 """ 
     IPyWidget(ipywidget)
 
-Wrap an ipywidget to be used inside Pluto
+Wrap an ipywidget to be used inside Pluto.
 """
 struct IPyWidget
     widget
