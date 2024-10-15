@@ -173,6 +173,7 @@ end
 
 function pyshow_rule_ipywidgets(io::IO, mime::String, x::Py)
     mime == "text/html" || return false
+    "ipywidgets" in @pyconst(pyimport("sys")).modules || return false
     pyissubclass(pytype(x), @pyconst(pyimport("ipywidgets").widgets.ValueWidget)) || return false
     try
         show(io, mime, JolinPluto.IPyWidget(x))
