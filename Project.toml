@@ -1,7 +1,7 @@
 name = "JolinPluto"
 uuid = "5b0b4ef8-f4e6-4363-b674-3f031f7b9530"
 authors = ["Stephan Sahm <stephan.sahm@jolin.io> and contributors"]
-version = "0.1.92"
+version = "0.1.93"
 
 [deps]
 AbstractPlutoDingetjes = "6e696c72-6542-2067-7265-42206c756150"
@@ -18,13 +18,14 @@ JWTs = "d850fbd6-035d-5a70-a269-1ca2e636ac6c"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [weakdeps]
+AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
-CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 
 [extensions]
+AWSExt = "AWS"
 PythonCallExt = "PythonCall"
-RCallExt = ["RCall", "CondaPkg"]
+RCallExt = "RCall"
 
 [compat]
 julia = "1.7"
