@@ -1,5 +1,16 @@
 using EzXML
 import AbstractPlutoDingetjes
+import HypertextLiteral
+
+# for HTML this is already defined inside PlutoRunner, but HypertextLiteral is not a dependency of PlutoRunner, hence we put it here
+# this is needed for convenience so people don't have to wrap @htl into HTML for it to be interpolatable inside script tags
+function Base.show(io::IO, ::MIME"text/javascript", htl::HypertextLiteral.Result)
+	html = sprint(show, MIME"text/html"(), htl)
+	# observablehq/stdlib.html is by default always available, hence this is always valid
+	# in case the user wants to use preact html, it just needs to be imported/shadowed respectively
+	write(io, "html`$html`")
+end
+
 
 """
     output_below()
@@ -140,18 +151,6 @@ function MD(args...; kwargs...)
     _MD_parser(args...; kwargs...)
 end
 
-
-# RCall's calling syntax does not support arbitrary types, but is good with functions
-"""
-	_HTML("<h1> HTML String </h1>")
-
-Just like HTML, but a function. 
-
-Background: RCall's calling syntax does not support arbitrary types, but is good with functions.
-"""
-function _HTML(args...; kwargs...)
-	HTML(args...; kwargs...)
-end
 
 """
     format_html(anything)
