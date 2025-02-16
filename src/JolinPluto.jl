@@ -1,8 +1,8 @@
 module JolinPluto
 
-export @repeat_take!, @repeat_at, @repeat_run, @Channel
-export repeat_take!, repeat_take, repeat_at, repeat_run, ChannelPluto, repeat_queueget, ChannelWithRepeatedFill, NoPut, start_python_thread
-export output_below, clipboard_image_to_clipboard_html, embedLargeHTML, plotly_responsive
+export @repeat_take!, @repeat_at, @Channel
+export repeat_take!, repeat_take, repeat_at, ChannelPluto, repeat_queueget, start_python_thread, ChannelWithRepeatedFill, NoPut
+export output_below, clipboard_image_to_clipboard_html, embedLargeHTML
 export Setter, @get, @cell_ids_create_wrapper, @cell_ids_push!
 export cell_ids_create_wrapper, cell_ids_push!, cell_ids_push
 export MD, format_html
