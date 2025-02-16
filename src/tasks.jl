@@ -1,3 +1,8 @@
+public @repeat_take!, repeat_take!, repeat_take, @repeat_at, repeat_at
+public @Channel, ChannelPluto, ChannelWithRepeatedFill, NoPut
+public repeat_queueget, start_python_thread
+
+
 # Helpers
 # -------
 
@@ -146,6 +151,7 @@ end
 
 
 const pluto_cell_cache = Dict{UUID, Function}()
+
 """
 	repeat_run(function_used_for_init_and_repeated_execution)
 	repeat_run(function_for_init, function_for_repetition)
@@ -232,6 +238,18 @@ function _split_macro_args(args)
 		for expr in _kwargs
 	)
 	return args, kwargs
+end
+
+@testitem "split_macro_args" begin
+	res = ([:a, :b], Dict{Symbol,Any}(:c => 43, :d => "hi"))
+	args = :(@mymacro a b c=43 d="hi").args[3:end]
+	@test JolinPluto._split_macro_args(args) == res
+
+	args = :(@mymacro(a, b, c=43, d="hi")).args[3:end]
+	@test JolinPluto._split_macro_args(args) == res
+
+	args = :(@mymacro(a, b; c=43, d="hi")).args[3:end]
+	@test JolinPluto._split_macro_args(args) == res
 end
 
 
@@ -375,6 +393,18 @@ end
 
 repeat_at(nexttime; kwargs...) = repeat_at((time) -> nothing, nexttime; kwargs...)
 
+@testitem "repeat_at" begin
+	using Dates
+	n = now()
+	repeat_at(n + Second(1)) do t
+		@test t >= n + Second(1)
+	end
+	n = now()
+	@repeat_at(n + Second(10), init=:run) do t
+		@test t < n + Second(10)
+	end
+end
+
 
 """
 	nextvalue = @repeat_take! channel
@@ -399,6 +429,18 @@ function repeat_take!(channel)
 end
 
 const repeat_take = repeat_take!
+
+@testitem "repeat_take_Channel" begin
+	ch = @Channel(100) do ch
+		for i in 1:10
+			put!(ch, i)
+		end
+	end
+	result = @repeat_take! ch
+	@test result == 1
+
+	@test repeat_take(ch) == 2
+end
 
 """
     channel = @Channel(10) do ch
@@ -476,6 +518,13 @@ end
 
 
 struct NoPutType end
+
+"""
+	NoPut
+
+Special singleton value. It is used inside `ChannelWithRepeatedFill` to indicate that a 
+specific repetition should not add any value to the Channel.
+"""
 const NoPut = NoPutType()
 
 """
@@ -495,27 +544,6 @@ function ChannelWithRepeatedFill(get_next_value, args...; sleep_seconds=0.0, ski
 end
 
 
-# TODO create Pluto queue analog for Python which automatically kills the previous thread if one was started
-
-
-
-"""
-	repeat_queueget(python_queue_threaded)
-
-Will repeatedly get elements from the queue and trigger a rerun of the current cell.
-Outside pluto it will just wait for the first element to arrive and return that.
-
-IMPORTANT: This function is only available if `import PythonCall` was executed before `import JolinPluto`.
-"""
 function repeat_queueget end
 
-
-"""
-    start_python_thread(func)  # `func` gets stop_event as the only argument
-
-Like `threading.Thread(target=func, args=(threading.Event(),)).start()`, but such that the Event
-is integrated into Pluto and will be automatically set if the thread should stop itself.
-
-IMPORTANT: This function is only available if `import PythonCall` was executed before `import JolinPluto`.
-"""
 function start_python_thread end

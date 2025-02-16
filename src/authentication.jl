@@ -57,12 +57,6 @@ function authenticate_token(audience="")
 end
 
 
-"""
-    authenticate_aws(role_arn; audience="")
-
-Assume role via web identity. How to define such a role can be found here
-https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-configure-role-oidc
-"""
 function authenticate_aws end
 
 # TODO add Azure, Google Cloud and HashiCorp

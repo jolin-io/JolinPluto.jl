@@ -4,7 +4,7 @@ CurrentModule = JolinPluto
 
 # JolinPluto
 
-Documentation for [JolinPluto](https://github.com/jolin-io/JolinPluto.jl).
+API documentation for [JolinPluto](https://github.com/jolin-io/JolinPluto.jl).
 
 ```@index
 ```

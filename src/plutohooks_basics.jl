@@ -27,3 +27,8 @@ function is_running_in_jolinpluto_process()
 	end
 	return ispluto && isjolin
 end
+
+@testitem "pluto process" begin
+	@test JolinPluto.is_running_in_pluto_process() == false
+	@test JolinPluto.is_running_in_jolinpluto_process() == false
+end

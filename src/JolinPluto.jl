@@ -13,6 +13,7 @@ export authenticate_token, authenticate_aws
 using Dates, HTTP, JSON3, Git, JWTs, UUIDs, Base64
 using HypertextLiteral, Continuables
 import AbstractPlutoDingetjes
+using TestItems
 
 include("plutohooks_basics.jl")
 include("viewof.jl")

@@ -1,6 +1,7 @@
 using EzXML
 import AbstractPlutoDingetjes
 
+public output_below, format_html, MD
 
 """
     output_below()
@@ -43,7 +44,6 @@ Creates a little textfield where you can paste images. These images are then tra
 to self-containing html img tags and copied back to the clipboard to be entered
 somewhere in Pluto.
 """
-
 clipboard_image_to_clipboard_html() = HTML(raw"""
     <div contentEditable = true>
         <script>

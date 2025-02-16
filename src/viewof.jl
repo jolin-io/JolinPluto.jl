@@ -1,3 +1,5 @@
+public viewof
+
 """
 ```julia
 viewof(:symbol, element)
@@ -43,4 +45,17 @@ end
 # (same for R strings)
 function viewof(def::AbstractString, ui)
     viewof(Symbol(def), ui)
+end
+
+@testitem "viewof" begin
+    ui = html"<input type=range>"
+    @test viewof(:x, ui) === (missing, ui)
+
+    struct InitialValue{T}
+        x::T
+    end
+    import AbstractPlutoDingetjes
+    AbstractPlutoDingetjes.Bonds.initial_value(iv::InitialValue) = iv.x
+    ui = InitialValue(42)
+    @test viewof(:x, ui) == (42, ui)
 end

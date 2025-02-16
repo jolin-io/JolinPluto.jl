@@ -1,6 +1,2 @@
-using JolinPluto
-using Test
-
-@testset "JolinPluto.jl" begin
-    # Write your tests here.
-end
+using TestItemRunner
+@run_package_tests

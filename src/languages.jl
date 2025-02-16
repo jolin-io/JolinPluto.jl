@@ -1,4 +1,5 @@
 # common things for both R and Python
+public IPyWidget, IPyWidget_init
 
 """
     lang_enabled(Val(:py))

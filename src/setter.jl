@@ -1,3 +1,5 @@
+public Setter, @get, get
+
 # Core Setter implementation
 # --------------------------
 
@@ -54,6 +56,12 @@ end
 getsetter(setter::Setter) = setter
 
 
+"""
+	@get setter
+
+Extracts the value from the `Setter` wrapper, making this very cell reactive 
+so that as soon as the setter is called, this cell will rerun.
+"""
 macro get(setter)
 	setter = esc(setter)
 	firsttime = Ref(true)
@@ -82,7 +90,13 @@ macro get(setter)
 end
 
 
+"""
+	get(setter::Setter)
 
+Only works inside Jolin Pluto Notebook.
+Extracts the value from the `Setter` wrapper, making this very cell reactive 
+so that as soon as the setter is called, this cell will rerun.
+"""
 function Base.get(setter::Setter)
 	is_running_in_jolinpluto_process() || return setter.value
 	firsttime = Main.PlutoRunner.currently_running_user_requested_run[]
@@ -106,6 +120,12 @@ function Base.get(setter::Setter)
 	end
 end
 
+@testitem "Setter" begin
+	set_x = Setter(4)
+	@test get(set_x) == 4
+	set_x(6)
+	@test @get(set_x) == 6
+end
 
 # Concrete Application - Collecting Cellids behind the Scenes
 # --------------------

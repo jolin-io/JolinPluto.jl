@@ -4,7 +4,42 @@ import JolinPluto
 using PythonCall
 using HypertextLiteral
 import AbstractPlutoDingetjes
+using TestItems
 
+"""
+    repeat_queueget(python_queue_threaded)
+
+Usually used in combination with `start_python_thread`.
+
+Will repeatedly get elements from the queue and trigger a rerun of the current cell.
+Outside pluto it will just wait for the first element to arrive and return that.
+
+
+# Example
+
+In Python Pluto notebooks, imports should ideally be defined in their own cell.
+```py
+import queue
+```
+
+Define your queue and fill it behind the scene.
+```py
+q = queue.Queue(maxsize=2)
+
+def thread_queueput_random(stop_event):
+	while not stop_event.is_set():
+		x = random.gauss()
+		q.put(x)
+		time.sleep(2)
+
+stop_event = JolinPluto.start_python_thread(thread_queueput_random)
+```
+
+Use `repeat_queueget` to read a single value from it, again and again and again and again, using Pluto's reactivity.
+```py
+update = JolinPluto.repeat_queueget(q)
+```
+"""
 function JolinPluto.repeat_queueget(q)
     function _repeat_queueget()
         while PythonCall.pytruth(q.empty())
@@ -16,6 +51,38 @@ function JolinPluto.repeat_queueget(q)
     JolinPluto.repeat_run(_repeat_queueget)
 end
 
+"""
+    start_python_thread(func)  # `func` gets stop_event as the only argument
+
+Like `threading.Thread(target=func, args=(threading.Event(),)).start()`, but such that the Event
+is integrated into Pluto and will be automatically set if the thread should stop itself.
+
+
+# Example
+
+In Python Pluto notebooks, imports should ideally be defined in their own cell.
+```py
+import queue
+```
+
+Define your queue and fill it behind the scene.
+```py
+q = queue.Queue(maxsize=2)
+
+def thread_queueput_random(stop_event):
+	while not stop_event.is_set():
+		x = random.gauss()
+		q.put(x)
+		time.sleep(2)
+
+stop_event = JolinPluto.start_python_thread(thread_queueput_random)
+```
+
+You can use `repeat_queueget` to read values from the queue.
+```py
+update = JolinPluto.repeat_queueget(q)
+```
+"""
 function JolinPluto.start_python_thread(func)
     threading = @pyconst(pyimport("threading"))
 
@@ -67,7 +134,11 @@ function JolinPluto.lang_get_global(::Val{:py}, def)
     pyglobals()[string(def)]
 end
 
-
+@testitem "Python globals" begin
+    import PythonCall
+    JolinPluto.lang_set_global(Val(:py), :x, 42)
+    @test PythonCall.pytruth(42 == PythonCall.pyeval(Int, "x", Main) == JolinPluto.lang_get_global(Val(:py), :x))
+end
 
 # ipywidgets support
 # ==================
