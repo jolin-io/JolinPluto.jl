@@ -2,7 +2,7 @@ module JolinPluto
 
 export @repeat_take!, @repeat_at, @Channel
 export repeat_take!, repeat_take, repeat_at, ChannelPluto, repeat_queueget, start_python_thread, ChannelWithRepeatedFill, NoPut
-export output_below, clipboard_image_to_clipboard_html, embedLargeHTML
+export output_below
 export Setter, @get
 export MD, format_html
 export viewof

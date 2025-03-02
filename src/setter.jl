@@ -1,5 +1,3 @@
-public Setter, @get, get
-
 # Core Setter implementation
 # --------------------------
 

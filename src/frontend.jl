@@ -1,8 +1,6 @@
 using EzXML
 import AbstractPlutoDingetjes
 
-public output_below, format_html, MD
-
 """
     output_below()
 

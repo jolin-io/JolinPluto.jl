@@ -1,5 +1,3 @@
-public viewof
-
 """
 ```julia
 viewof(:symbol, element)
