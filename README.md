@@ -17,12 +17,6 @@ Welcome to our small collection of utility functions for [Pluto.jl](https://gith
 | `clipboard_image_to_clipboard_html` | Experimental. Creates a little converter to paste images and get a Pluto html image string back which self-includes the data. Ready to be passed into another Pluto cell. |
 
 
-Further common Pluto snippets
-- increase the width of the Pluto Notebook
-    ```julia
-    html"""<style> main { max-width: 1400px; } </style>"""
-    ```
-
 ## Macro style helpers for reactivity in Julia, compatible with Pluto.jl
 
 | utility | description |
@@ -55,3 +49,11 @@ Further common Pluto snippets
 | ------- |:----------- |
 | `authenticate_token` | Generate a json web token from the current environment. In Jolin Cloud this uses Jolin Cloud JWT, in Github Actions this uses Github's JWT. |
 | `authenticate_aws` | Authenticate against AWS given the Jolin Cloud token. You need to import `AWS.jl` for this to be available. |
+
+
+## Further common Pluto snippets
+
+increase the width of the Pluto Notebook
+```julia
+html"""<style> main { max-width: 1400px; } </style>"""
+```
